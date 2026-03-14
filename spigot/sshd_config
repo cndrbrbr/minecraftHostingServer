@@ -13,7 +13,7 @@ PasswordAuthentication no
 PermitRootLogin no
 PermitEmptyPasswords no
 ChallengeResponseAuthentication no
-UsePAM no
+UsePAM yes
 
 # Disable everything not needed
 AllowTcpForwarding no
