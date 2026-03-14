@@ -4,6 +4,15 @@ set -e
 SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.4}
 SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
 
+# ── SSH host keys ────────────────────────────────────────────
+# Stored on the volume so the fingerprint is stable across restarts
+# and unique per container (each server has its own volume).
+if [ ! -f /server/ssh_host_ed25519_key ]; then
+    ssh-keygen -t ed25519 -f /server/ssh_host_ed25519_key -N '' -q
+    ssh-keygen -t rsa -b 4096 -f /server/ssh_host_rsa_key -N '' -q
+    chmod 600 /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
+fi
+
 # ── Authorized keys from environment ─────────────────────────
 # Written every start so key rotations take effect immediately
 if [ -n "${SFTP_PUBKEY}" ]; then

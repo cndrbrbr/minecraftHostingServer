@@ -52,11 +52,6 @@ RUN mkdir -p /home/mc-sftp/.ssh /home/mc-ctrl/.ssh && \
 RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh\n' \
     > /etc/sudoers.d/mc-ctrl && chmod 440 /etc/sudoers.d/mc-ctrl
 
-# ── Pre-generate SSH host keys (baked into image so fingerprint ──
-# stays stable across container restarts; unique per build)
-RUN ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' -q && \
-    ssh-keygen -t rsa    -b 4096 -f /etc/ssh/ssh_host_rsa_key    -N '' -q
-
 WORKDIR /server-base
 
 # Plugin JAR
