@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.4}
+SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
 SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
 
 # ── SSH host keys ────────────────────────────────────────────
