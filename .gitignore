@@ -1,0 +1,7 @@
+# Private SSH keys — never commit these
+keys/mc*/sftp_key
+keys/mc*/ctrl_key
+
+# Populated .env contains public keys (safe to commit if desired,
+# but excluded here to avoid accidental exposure)
+.env

@@ -1,0 +1,46 @@
+Port 22
+AddressFamily inet
+
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
+
+# Authentication
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+PasswordAuthentication no
+PermitRootLogin no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+UsePAM no
+
+# Disable everything not needed
+AllowTcpForwarding no
+X11Forwarding no
+AllowAgentForwarding no
+PrintMotd no
+
+# Only our two users may connect
+AllowUsers mc-sftp mc-ctrl
+
+SyslogFacility AUTH
+LogLevel INFO
+
+Subsystem sftp internal-sftp
+
+# ── SFTP user (FileZilla) ─────────────────────────────────────
+# Chrooted to /server; starts in /data (= /server/data)
+# /server must be owned root:root 755 — guaranteed by entrypoint
+Match User mc-sftp
+    ChrootDirectory /server
+    ForceCommand internal-sftp -d /data
+    AllowTcpForwarding no
+    X11Forwarding no
+    AllowAgentForwarding no
+
+# ── Control user (PuTTY) ─────────────────────────────────────
+# May only trigger a server restart; nothing else
+Match User mc-ctrl
+    ForceCommand sudo /mc-start.sh
+    AllowTcpForwarding no
+    X11Forwarding no
+    AllowAgentForwarding no
