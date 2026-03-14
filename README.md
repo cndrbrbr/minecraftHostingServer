@@ -1,302 +1,222 @@
-# Minecraft Workshop Host
+# Minecraft Workshop Host — Admin Guide
 
-Runs **5 isolated Spigot Minecraft servers** on a single host, each in its own Docker container. Every server gets individual SSH access so students can upload files with FileZilla and restart their server with PuTTY — and nothing else.
+This system runs **5 isolated Spigot Minecraft servers** on a single host, one per student, each in its own Docker container. Students connect to their server with FileZilla (file upload) and PuTTY (server restart). They cannot access each other's servers or do anything beyond those two actions.
 
 Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/javascriptMinecraftWorkshopServer).
 
 ---
 
-## Architecture
+## How it works
 
 ```
 Host machine
 │
-├── mc1  (container)  ── MC port 25565 ── SSH port 2221
-├── mc2  (container)  ── MC port 25566 ── SSH port 2222
-├── mc3  (container)  ── MC port 25567 ── SSH port 2223
-├── mc4  (container)  ── MC port 25568 ── SSH port 2224
-└── mc5  (container)  ── MC port 25569 ── SSH port 2225
+├── mc1  (container)  ── Minecraft port 25565 ── SSH port 2221  ── student 1
+├── mc2  (container)  ── Minecraft port 25566 ── SSH port 2222  ── student 2
+├── mc3  (container)  ── Minecraft port 25567 ── SSH port 2223  ── student 3
+├── mc4  (container)  ── Minecraft port 25568 ── SSH port 2224  ── student 4
+└── mc5  (container)  ── Minecraft port 25569 ── SSH port 2225  ── student 5
 ```
 
-Each container is an independent Debian Trixie environment with:
-- A Spigot server (built via BuildTools on first start)
-- The [script4kids](https://github.com/cndrbrbr/script4kids) plugin
-- An SSH server with two locked-down users per container
+Each container runs Debian Trixie and contains:
+- A Spigot Minecraft server with the script4kids plugin
+- An SSH server with exactly two locked-down users:
 
-### SSH users per container
+| SSH user | Tool | Permission |
+|----------|------|------------|
+| `mc-sftp` | FileZilla | SFTP only, restricted to the server's data folder |
+| `mc-ctrl` | PuTTY | Runs the server restart script — nothing else |
 
-| User | Tool | What they can do |
-|------|------|-----------------|
-| `mc-sftp` | FileZilla | SFTP only, chrooted to `/server`, lands in `/data/` |
-| `mc-ctrl` | PuTTY | Runs `/mc-start.sh` only — restarts the MC server |
-
-Both users authenticate exclusively with their individual SSH key. Password login is disabled. No shell, no forwarding, no escape.
+Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
 
 ---
 
 ## Prerequisites
 
-- Docker + Docker Compose (v2)
-- `ssh-keygen` available on the host
-- (Windows students) PuTTYgen to convert keys to `.ppk`
+Install these on the host machine before you begin:
+
+- **Docker** (version 20+) including **Docker Compose v2**
+  ```bash
+  docker --version          # should print Docker version 20+
+  docker compose version    # should print v2.x.x
+  ```
+- **ssh-keygen** — available by default on Linux and macOS; on Windows install Git for Windows or WSL
+- **git** — to clone this repository
+
+Students on Windows will also need:
+- **FileZilla** — https://filezilla-project.org
+- **PuTTY** (includes PuTTYgen) — https://putty.org
 
 ---
 
-## Setup
+## First-time setup
 
-### 1. Configure memory
+Do this once on the host machine, before any workshop.
+
+### Step 1 — Clone the repository
+
+```bash
+git clone git@github.com:cndrbrbr/minecraftHostingServer.git mchost
+cd mchost
+```
+
+### Step 2 — Configure memory
+
+This script reads the host's total RAM, reserves 15 % (minimum 2 GB) for the OS and Docker, and splits the rest equally across the 5 servers. It writes the result into `docker-compose.yml` and generates the per-server start scripts.
 
 ```bash
 chmod +x configure-memory.sh
 ./configure-memory.sh
 ```
 
-This reads the host's total RAM, reserves ~15 % (minimum 2 GB) for the OS and Docker overhead, divides the rest equally across the 5 servers, and writes the result into `docker-compose.yml` (`MC_MEM_MIN` / `MC_MEM_MAX`).
+Example output on a 16 GB machine:
 
-It also generates individual per-server start scripts `start-mc1.sh` … `start-mc5.sh` with the calculated values embedded.
-
-Example output on a 16 GB host:
 ```
-Total RAM          :  16384 MB
-OS reservation     :   2458 MB
-Available for MC   :  13926 MB
-Per server (max)   :   2560 MB  (2560M)
-Per server (min)   :   1280 MB  (1280M)
+╔══════════════════════════════════════════════════╗
+║         Memory configuration                     ║
+╠══════════════════════════════════════════════════╣
+║  Total RAM          :  16384 MB                  ║
+║  OS reservation     :   2458 MB                  ║
+║  Available for MC   :  13926 MB                  ║
+║  Per server (max)   :   2560 MB  (2560M)
+║  Per server (min)   :   1280 MB  (1280M)
+╚══════════════════════════════════════════════════╝
+
+✓ docker-compose.yml updated  (MC_MEM_MIN=1280M  MC_MEM_MAX=2560M)
+✓ start-mc1.sh generated
+✓ start-mc2.sh generated
+...
 ```
 
-Re-run `configure-memory.sh` any time you add RAM or want to adjust the allocation — then run `docker compose up -d` again to apply the new values.
+Re-run this script any time you move the setup to a different machine.
 
-### 2. Generate SSH keys
+### Step 3 — Generate SSH keys
+
+This creates two ed25519 key pairs per server (one for FileZilla, one for PuTTY) and writes the public keys into `.env` so docker-compose can inject them into the containers.
 
 ```bash
 chmod +x setup-keys.sh
 ./setup-keys.sh
 ```
 
-This creates two ed25519 key pairs per server under `keys/mc{1-5}/`:
+The keys are saved under `keys/`:
 
 ```
 keys/
 ├── mc1/
-│   ├── sftp_key      ← private key for FileZilla  (give to student)
-│   ├── sftp_key.pub  ← public key                 (stays on server)
-│   ├── ctrl_key      ← private key for PuTTY       (give to student)
-│   └── ctrl_key.pub  ← public key                 (stays on server)
-├── mc2/ ...
+│   ├── sftp_key        ← give this file to student 1  (FileZilla)
+│   ├── sftp_key.pub
+│   ├── ctrl_key        ← give this file to student 1  (PuTTY)
+│   └── ctrl_key.pub
+├── mc2/  ...
+├── mc3/  ...
+├── mc4/  ...
+└── mc5/  ...
 ```
 
-It also writes all public keys into `.env`, which docker-compose reads on startup.
+> **Never commit the private key files.** They are excluded by `.gitignore`.
 
-> **Keep private keys safe.** Never commit them — they are in `.gitignore`.
-
-### 3. Start all servers
+### Step 4 — Build the image and start all servers
 
 ```bash
 docker compose up -d
 ```
 
-Docker will build the image on the very first run (downloads packages, compiles the plugin — allow **5–10 minutes**). Every subsequent start is fast.
+The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, compiles the plugin). Every start after that is done in seconds.
 
-What happens inside each container during startup:
-
-```
-container boot
-│
-├── 1. SSH server starts           (~1 s)
-│       authorized_keys are written from the SFTP_PUBKEY / CTRL_PUBKEY
-│       environment variables so FileZilla and PuTTY keys are live immediately.
-│
-├── 2. Spigot is built (first run only)   (~5 min)
-│       BuildTools downloads Minecraft sources and compiles Spigot.
-│       The resulting JAR is stored on the named volume so this step
-│       is skipped on every subsequent container start.
-│       Progress is visible in the logs:
-│           docker compose logs -f mc1
-│
-└── 3. Minecraft server starts      (~30 s after JAR exists)
-        World generation happens on the very first start and takes
-        another minute. After that the server is reachable on its port.
-```
-
-**How to tell the server is ready:**
-Watch the logs until you see a line like:
-```
-[Server thread/INFO]: Done (12.345s)! For help, type "help"
-```
-
-```bash
-docker compose logs -f mc1     # follow logs for server 1
-# Ctrl+C to stop following
-```
-
-**Starting individual servers** (uses the scripts generated by `configure-memory.sh`):
-
-```bash
-./start-mc1.sh   # start or restart mc1 only
-./start-mc3.sh   # start or restart mc3 only
-```
-
-These call `docker compose up -d --no-deps mcN` — if the container config changed (e.g. after re-running `configure-memory.sh`) the container is recreated automatically.
-
-### 4. Distribute keys to students
-
-Each student receives:
-- The **host IP or domain** of the workshop machine
-- Their **SSH port** (2221–2225)
-- Their **`sftp_key`** file (FileZilla)
-- Their **`ctrl_key`** file (PuTTY / PuTTYgen)
-
----
-
-## Student instructions
-
-Each student gets:
-- The **host IP** of the workshop machine (ask your teacher)
-- Their personal **SSH port** (somewhere between 2221 and 2225)
-- Two key files: **`sftp_key`** and **`ctrl_key`**
-
----
-
-### FileZilla — upload, edit, download files
-
-FileZilla connects to your server via SFTP (SSH file transfer). You need to register your key once, then you can connect any time.
-
-#### Register the key (once)
-
-1. Open FileZilla.
-2. Go to **Edit → Settings** (Windows/Linux) or **FileZilla → Preferences** (macOS).
-3. In the left panel select **Connection → SFTP**.
-4. Click **Add key file…**
-5. Navigate to your `sftp_key` file and open it.
-   - If FileZilla asks to convert it, click **Yes** and save the converted file next to the original.
-6. Click **OK** to close Settings.
-
-#### Connect
-
-1. In the toolbar at the top fill in:
-   | Field | Value |
-   |-------|-------|
-   | Host | `sftp://<host IP>` |
-   | Username | `mc-sftp` |
-   | Password | *(leave empty)* |
-   | Port | `<your SSH port>` |
-2. Click **Quickconnect**.
-3. The first time you connect FileZilla shows an "Unknown host key" warning — click **OK / Trust**.
-
-#### Navigate your server files
-
-After connecting you land directly in your server's data folder:
+What happens inside each container on boot:
 
 ```
-/data/
-├── cfg/          ← server.properties, bukkit.yml, spigot.yml, …
-├── plugins/      ← upload your .jar plugin files here
-└── worlds/       ← world saves (world, world_nether, world_the_end)
+1. SSH host keys are generated (once, stored on the volume)
+2. SSH server starts            (~1 s)
+3. Spigot JAR is built          (~5–10 min on first run only)
+4. Minecraft server starts      (~30 s)
+5. World is generated           (~1 min on first run only)
 ```
 
-- **Upload a plugin:** drag the `.jar` file from your computer into `/data/plugins/`.
-- **Edit a file:** right-click → **View/Edit**, make your changes, save — FileZilla uploads it automatically.
-- **Download a file:** drag it from the right panel (server) to the left panel (your computer).
+### Step 5 — Verify everything is running
 
-> After uploading new plugins or changing config files, restart your server with PuTTY so the changes take effect.
-
----
-
-### PuTTY — restart the server
-
-PuTTY is used to send a restart command to your server. You need to prepare your key once with PuTTYgen.
-
-#### Convert the key (once)
-
-PuTTY uses its own key format (`.ppk`). You only need to do this once.
-
-1. Open **PuTTYgen** (installed together with PuTTY).
-2. Click **Load**.
-3. In the file-type dropdown (bottom-right) select **All Files (\*.\*)**.
-4. Navigate to your `ctrl_key` file and open it.
-5. PuTTYgen shows "Successfully imported foreign key" — click **OK**.
-6. Click **Save private key**.
-7. When asked about a passphrase, click **Yes** to save without one.
-8. Save the file as `ctrl_key.ppk` next to the original.
-
-#### Restart the server
-
-1. Open **PuTTY**.
-2. In the **Session** category enter:
-   - **Host Name:** `<host IP>`
-   - **Port:** `<your SSH port>`
-   - **Connection type:** SSH
-3. In the left tree go to **Connection → SSH → Auth → Credentials**.
-4. Under **Private key file for authentication** click **Browse…** and select your `ctrl_key.ppk`.
-5. Go back to **Session**, enter a name in **Saved Sessions** (e.g. `mc-workshop`) and click **Save** — so you don't have to repeat steps 2–4 next time.
-6. Click **Open**.
-7. When asked about the host key, click **Accept**.
-8. Log in as user: `mc-ctrl`
-
-The terminal will show:
-```
-==> Stopping Minecraft server...
-==> Server will restart automatically in a few seconds.
-==> You may close this connection.
-```
-
-The server is back online within about 10 seconds. You can close the PuTTY window.
-
-> **Tip:** Save the session in step 5 so next time you just double-click the saved session, click Open, and type `mc-ctrl` — done in 10 seconds.
-
----
-
-## Admin operations
-
-All commands must be run from the `mchost/` directory.
-
----
-
-### Start the whole environment
-
-```bash
-docker compose up -d
-```
-
-Starts all 5 servers in the background. On the very first run the Docker image is built (~5–10 min). After that it starts in seconds.
-
-Check that all containers came up:
 ```bash
 docker compose ps
 ```
 
-Expected output (all should show `running`):
+All five containers should show `running`:
+
 ```
-NAME   IMAGE          STATUS          PORTS
-mc1    mchost-spigot  Up 2 minutes    0.0.0.0:25565->25565/tcp, 0.0.0.0:2221->22/tcp
-mc2    mchost-spigot  Up 2 minutes    0.0.0.0:25566->25565/tcp, 0.0.0.0:2222->22/tcp
-...
+NAME  STATUS         PORTS
+mc1   Up 3 minutes   0.0.0.0:25565->25565/tcp, 0.0.0.0:2221->22/tcp
+mc2   Up 3 minutes   0.0.0.0:25566->25565/tcp, 0.0.0.0:2222->22/tcp
+mc3   Up 3 minutes   0.0.0.0:25567->25565/tcp, 0.0.0.0:2223->22/tcp
+mc4   Up 3 minutes   0.0.0.0:25568->25565/tcp, 0.0.0.0:2224->22/tcp
+mc5   Up 3 minutes   0.0.0.0:25569->25565/tcp, 0.0.0.0:2225->22/tcp
 ```
 
+Check the logs to confirm the Minecraft server inside mc1 is ready:
+
+```bash
+docker compose logs -f mc1
+```
+
+The server is ready when you see this line:
+
+```
+[Server thread/INFO]: Done (12.345s)! For help, type "help"
+```
+
+Press `Ctrl+C` to stop following the log. Repeat for the other servers if needed.
+
+### Step 6 — Distribute keys to students
+
+Hand each student their two key files and their connection details. You can use the student guide template in `STUDENT.md` — fill in the host IP and SSH port before printing or sending it.
+
+| Student | Key files | SSH port | Minecraft port |
+|---------|-----------|----------|----------------|
+| 1 | `keys/mc1/sftp_key`, `keys/mc1/ctrl_key` | 2221 | 25565 |
+| 2 | `keys/mc2/sftp_key`, `keys/mc2/ctrl_key` | 2222 | 25566 |
+| 3 | `keys/mc3/sftp_key`, `keys/mc3/ctrl_key` | 2223 | 25567 |
+| 4 | `keys/mc4/sftp_key`, `keys/mc4/ctrl_key` | 2224 | 25568 |
+| 5 | `keys/mc5/sftp_key`, `keys/mc5/ctrl_key` | 2225 | 25569 |
+
+Replace `<HOST>` with the actual IP or hostname of the workshop machine:
+
+| Student | FileZilla (SFTP) | PuTTY (SSH) | Minecraft client |
+|---------|-----------------|-------------|-----------------|
+| 1 | `sftp://<HOST>:2221` user `mc-sftp` | `<HOST>:2221` user `mc-ctrl` | `<HOST>:25565` |
+| 2 | `sftp://<HOST>:2222` user `mc-sftp` | `<HOST>:2222` user `mc-ctrl` | `<HOST>:25566` |
+| 3 | `sftp://<HOST>:2223` user `mc-sftp` | `<HOST>:2223` user `mc-ctrl` | `<HOST>:25567` |
+| 4 | `sftp://<HOST>:2224` user `mc-sftp` | `<HOST>:2224` user `mc-ctrl` | `<HOST>:25568` |
+| 5 | `sftp://<HOST>:2225` user `mc-sftp` | `<HOST>:2225` user `mc-ctrl` | `<HOST>:25569` |
+
 ---
+
+## Day-of-workshop operations
+
+All commands run from the `mchost/` directory on the host.
+
+### Start all servers
+
+```bash
+docker compose up -d
+```
 
 ### Start or restart a single server
 
-```bash
-./start-mc1.sh     # server 1
-./start-mc3.sh     # server 3
-```
-
-Generated by `configure-memory.sh`. Calls `docker compose up -d --no-deps mcN` — recreates the container if any configuration changed, or simply starts it if stopped.
-
----
-
-### Restart only the Minecraft process (leave container running)
-
-Use this after a student uploads new plugins via FileZilla but the container should stay up:
+Use the generated scripts — they pick up any configuration changes automatically:
 
 ```bash
-./restart.sh 3     # server 3
+./start-mc1.sh
+./start-mc3.sh
 ```
 
-Sends `SIGTERM` to the Java process. The entrypoint's crash-restart loop relaunches it within ~5 seconds. SSH access remains available throughout.
+### Restart only the Minecraft process inside a container
 
----
+Use this when a student uploads new plugins and you want to restart the server without recreating the container:
+
+```bash
+./restart.sh 3     # restarts the Java process in mc3
+```
+
+The container stays up, SSH stays available. The server is back within ~10 seconds.
 
 ### Stop a single server
 
@@ -304,9 +224,7 @@ Sends `SIGTERM` to the Java process. The entrypoint's crash-restart loop relaunc
 docker compose stop mc2
 ```
 
-The container stops but the world data (named volume) is kept. Start it again with `./start-mc2.sh`.
-
----
+Start it again with `./start-mc2.sh`. World data is kept.
 
 ### Stop all servers
 
@@ -314,104 +232,118 @@ The container stops but the world data (named volume) is kept. Start it again wi
 docker compose down
 ```
 
-Stops and removes all containers. Named volumes (`mc1_data` … `mc5_data`) are **kept** — world data, plugins, and config files survive.
+All containers are stopped and removed. World data, plugins, and configs survive in the named volumes (`mc1_data` … `mc5_data`).
 
-To also wipe all world data and start completely fresh:
+To **wipe everything** including world data (fresh start):
+
 ```bash
-docker compose down -v     # ⚠ deletes ALL server data permanently
+docker compose down -v     # permanent — cannot be undone
 ```
 
----
-
-### Follow server logs
+### Watch the logs
 
 ```bash
-docker compose logs -f mc1          # follow mc1 live
+docker compose logs -f mc1          # follow mc1
 docker compose logs --tail=50 mc2   # last 50 lines of mc2
-docker compose logs -f              # follow all 5 servers at once
+docker compose logs -f              # follow all servers at once
 ```
 
-The server is ready when you see:
-```
-[Server thread/INFO]: Done (12.345s)! For help, type "help"
-```
-
----
-
-### Rebuild the image
-
-Required when the Dockerfile or plugin source changes (e.g. after a `git pull`):
-
-```bash
-docker compose build
-docker compose up -d
-```
-
-The Spigot JAR is cached on the volume — only the plugin JAR and OS packages are rebuilt, which is fast.
-
-To force a full Spigot rebuild on next start (e.g. to update the Minecraft version), set `FORCE_BUILD: "true"` in the relevant service in `docker-compose.yml`, then `docker compose up -d`, then set it back to `"false"`.
-
----
-
-### Open a shell inside a container (admin only)
+### Open a shell inside a container
 
 ```bash
 docker compose exec mc1 bash
 ```
 
-From here you can inspect the running server, run Minecraft console commands, or manually edit files. Exit with `Ctrl+D`.
+From here you can inspect files, read the Minecraft log, or manually run server commands. Exit with `Ctrl+D`.
 
-To send a command to the Minecraft console directly:
+Send a broadcast message to all players on mc1:
+
 ```bash
-docker compose exec mc1 bash -c 'echo "say Hello everyone" > /proc/1/fd/0'
+docker compose exec mc1 bash -c 'echo "say Workshop ends in 5 minutes!" > /proc/1/fd/0'
 ```
 
 ---
 
-### Replace a student's SSH key
+## Maintenance
 
-If a student loses their key, generate a new one and update `.env`:
+### Update after a git pull
+
+If you pull new code (plugin update, config change):
 
 ```bash
-ssh-keygen -t ed25519 -f keys/mc3/sftp_key -N '' -C "mc3-sftp"   # new SFTP key
-# Update MC3_SFTP_PUBKEY in .env with the new public key content
-docker compose up -d --no-deps mc3    # restart to apply new key
+git pull
+docker compose build
+docker compose up -d
 ```
 
-The new key is active immediately (the entrypoint writes `authorized_keys` on every container start).
+The Spigot JAR is cached on the volume and not rebuilt unless you also set `FORCE_BUILD: "true"` in `docker-compose.yml`.
+
+### Force a Spigot version update
+
+Edit `docker-compose.yml`, set `FORCE_BUILD: "true"` and optionally update `SPIGOT_VERSION` for the servers you want to update. Then:
+
+```bash
+docker compose up -d
+```
+
+Set `FORCE_BUILD` back to `"false"` after the build completes.
+
+### Replace a student's lost key
+
+```bash
+# Generate a new SFTP key for student 3
+ssh-keygen -t ed25519 -f keys/mc3/sftp_key -N '' -C "mc3-sftp"
+
+# Open .env and replace MC3_SFTP_PUBKEY with the content of keys/mc3/sftp_key.pub
+nano .env
+
+# Restart the container to apply the new key
+docker compose up -d --no-deps mc3
+```
+
+The new key is active immediately on next container start. Give the student the new `keys/mc3/sftp_key` file.
+
+### Re-run memory configuration
+
+If you move the host to a different machine or add RAM:
+
+```bash
+./configure-memory.sh
+docker compose up -d
+```
 
 ---
 
-## Configuration
+## Configuration reference
 
-All environment variables are set per-service in `docker-compose.yml`:
+All values are set per service in `docker-compose.yml`. To change a setting for one server, edit that service block and run `docker compose up -d --no-deps mcN`.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MC_PORT` | `25565` | Internal Minecraft port (do not change) |
-| `MC_MAXPLAYERS` | `5` | Max players per server |
-| `MC_MEM_MIN` | *(set by configure-memory.sh)* | JVM minimum heap |
-| `MC_MEM_MAX` | *(set by configure-memory.sh)* | JVM maximum heap |
-| `MC_LEVELNAME` | `world` | World folder name |
-| `FORCE_BUILD` | `false` | Set `true` to force Spigot rebuild |
-| `SPIGOT_VERSION` | `1.21.4` | Spigot version to build |
-| `SFTP_PUBKEY` | *(from .env)* | Public key for the SFTP user |
-| `CTRL_PUBKEY` | *(from .env)* | Public key for the control user |
-
-To change settings for a specific server, edit the relevant service block in `docker-compose.yml` and run `docker compose up -d mc3` (only that service restarts).
+| Variable | Set by | Description |
+|----------|--------|-------------|
+| `MC_PORT` | fixed `25565` | Internal Minecraft port (do not change) |
+| `MC_MAXPLAYERS` | `docker-compose.yml` | Max players per server |
+| `MC_MEM_MIN` | `configure-memory.sh` | JVM minimum heap |
+| `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
+| `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
+| `SPIGOT_VERSION` | `docker-compose.yml` | Spigot version to build |
+| `FORCE_BUILD` | `docker-compose.yml` | `true` to force Spigot rebuild on next start |
+| `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
+| `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
 
 ---
 
 ## Security model
 
-- **Container isolation:** each student's server is a separate container; students cannot reach each other's files or processes
-- **SSH chroot:** the SFTP user (`mc-sftp`) is chrooted to `/server` and can only access that container's data
-- **ForceCommand:** the control user (`mc-ctrl`) is unconditionally forced into `/mc-start.sh` — no shell is granted
-- **sudo scope:** `mc-ctrl` may only `sudo /mc-start.sh`, nothing else
-- **No passwords:** all SSH auth is key-only; password login is disabled
-- **No forwarding:** TCP, X11, and agent forwarding are all disabled
+| Layer | What it does |
+|-------|-------------|
+| Docker container | Each student's server is fully isolated — no access to other containers or the host filesystem |
+| SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
+| ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-start.sh`; no shell access is possible |
+| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh` — sudo for anything else is blocked |
+| Key-only auth | Password login is disabled on all SSH users |
+| No forwarding | TCP, X11, and agent forwarding are disabled |
 
-> For a production deployment consider adding TLS termination (e.g. Caddy) in front of a web IDE and restricting the host firewall so MC ports are only reachable from the workshop network.
+> For a production deployment, restrict the host firewall so Minecraft ports are only reachable from the workshop network, and consider putting a TLS reverse proxy (e.g. Caddy) in front of any web-facing services.
 
 ---
 
@@ -419,24 +351,26 @@ To change settings for a specific server, edit the relevant service block in `do
 
 ```
 mchost/
-├── docker-compose.yml     # 5 server services
-├── configure-memory.sh    # detect RAM → update docker-compose.yml → generate start scripts
-├── setup-keys.sh          # generate SSH keys + populate .env
-├── restart.sh             # restart MC process inside a running container
-├── start-mc1.sh           # generated — start/restart mc1  ┐
-├── start-mc2.sh           # generated — start/restart mc2  │ created by
-├── start-mc3.sh           # generated — start/restart mc3  │ configure-memory.sh
-├── start-mc4.sh           # generated — start/restart mc4  │
-├── start-mc5.sh           # generated — start/restart mc5  ┘
-├── .env.example           # template — copied to .env by setup-keys.sh
-├── .gitignore             # excludes private keys, .env, and start-mc*.sh
+├── docker-compose.yml      # 5 server services with port mappings and env vars
+├── configure-memory.sh     # detect RAM → update docker-compose.yml → generate start scripts
+├── setup-keys.sh           # generate ed25519 key pairs + write .env
+├── restart.sh              # restart the MC process inside a running container
+├── start-mc1.sh            # generated by configure-memory.sh ┐
+├── start-mc2.sh            #                                  │
+├── start-mc3.sh            #                                  ├ start/restart one server
+├── start-mc4.sh            #                                  │
+├── start-mc5.sh            #                                  ┘
+├── .env                    # public SSH keys — written by setup-keys.sh
+├── .env.example            # empty template
+├── .gitignore              # excludes private keys, .env, start-mc*.sh
+├── STUDENT.md              # printable student guide (fill in IP + port before sharing)
 └── spigot/
-    ├── Dockerfile         # debian:trixie-slim, two SSH users, host keys
-    ├── entrypoint.sh      # SSH init → Spigot build → MC restart loop
-    ├── sshd_config        # chroot + ForceCommand configuration
-    ├── mc-start.sh        # student restart script (PuTTY)
-    ├── watch_copy.sh      # inotify helper: sync config changes to volume
-    ├── server.properties  # default server config (copied on first run)
-    ├── eula.txt           # eula=true
-    └── whitelist.json     # empty by default; edit via FileZilla
+    ├── Dockerfile          # debian:trixie-slim, openssh-server, two SSH users
+    ├── entrypoint.sh       # generates SSH host keys → starts sshd → builds Spigot → runs MC
+    ├── sshd_config         # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
+    ├── mc-start.sh         # the only command mc-ctrl can run (restarts Minecraft)
+    ├── watch_copy.sh       # inotify helper: keeps server.properties in sync with volume
+    ├── server.properties   # default server config (copied to volume on first run)
+    ├── eula.txt            # eula=true
+    └── whitelist.json      # empty by default; students can edit via FileZilla
 ```
