@@ -20,8 +20,6 @@ Your two key files:
 
 > **Your server is yours alone.** Other students have their own separate server and cannot access yours.
 
-> **Your server is yours alone.** Other students have their own separate server and cannot access yours.
-
 ---
 
 ## Part 1 — FileZilla: upload, edit, and download files
@@ -32,19 +30,29 @@ FileZilla lets you transfer files between your computer and your Minecraft serve
 
 Download and install FileZilla from **https://filezilla-project.org** (choose "FileZilla Client").
 
-### Register your key (do this once)
+### Step 1 — Convert the key with PuTTYgen (do this once)
 
-FileZilla needs to know about your `sftp_key` file before it can connect.
+FileZilla works most reliably with keys in the `.ppk` format. You convert your `sftp_key` file once using **PuTTYgen** (installed together with PuTTY).
+
+1. Open **PuTTYgen** (search for it in the Start menu).
+2. Click **Load**.
+3. In the file browser, change the dropdown in the bottom-right corner from *"PuTTY Private Key Files (\*.ppk)"* to **All Files (\*.\*)**.
+4. Navigate to your `sftp_key` file and click **Open**.
+5. PuTTYgen shows *"Successfully imported foreign key"* — click **OK**.
+6. Click **Save private key**.
+7. When asked about a passphrase, click **Yes** (save without one).
+8. Save the file as **`sftp_key.ppk`** in the same folder as the original `sftp_key`.
+
+### Step 2 — Register the key in FileZilla (do this once)
 
 1. Open FileZilla.
 2. Open the settings:
    - Windows / Linux: **Edit → Settings**
    - macOS: **FileZilla → Preferences**
-3. In the left panel click **Connection**, then **SFTP**.
-4. Click the **Add key file…** button on the right.
-5. A file browser opens. Navigate to your `sftp_key` file and click **Open**.
-   - If FileZilla asks *"This file is not in a format supported by FileZilla. Convert it?"* — click **Yes**. Save the converted file in the same folder as the original.
-6. The key now appears in the list. Click **OK** to close Settings.
+3. In the left panel click **Connection → SFTP**.
+4. Click **Add key file…**
+5. Navigate to your **`sftp_key.ppk`** file (the converted one) and click **Open**.
+6. The key appears in the list. Click **OK**.
 
 You only need to do this once. FileZilla remembers the key.
 
@@ -194,8 +202,8 @@ The server must be running before you can connect. If it just restarted, wait 10
 - Ask your teacher whether the servers are running.
 
 **FileZilla says "Authentication failed"**
-- Make sure the key was registered correctly in Settings → Connection → SFTP.
-- You may have the wrong key file — check that you are using `sftp_key` (not `ctrl_key`).
+- Make sure you converted `sftp_key` to `sftp_key.ppk` with PuTTYgen first, and loaded the `.ppk` file in Settings → Connection → SFTP.
+- You may have the wrong key file — check that you are using `sftp_key.ppk` (not `ctrl_key` or `ctrl_key.ppk`).
 
 **PuTTY says "Access denied"**
 - Type the username exactly: `mc-ctrl` (all lowercase, hyphen between mc and ctrl).
