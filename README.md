@@ -4,19 +4,51 @@ This system runs **5 isolated Spigot Minecraft servers** on a single host, one p
 
 Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/javascriptMinecraftWorkshopServer).
 
+Two deployment modes are available — choose when running `configure-memory.sh`:
+
+| Mode | When to use |
+|------|-------------|
+| **standalone** | Simple setup — each server has its own Minecraft port (25565–25569). Students connect to different ports. |
+| **bungeecord** | Network setup — a BungeeCord proxy and lobby sit in front. All players connect on a single port (25565) and are routed to their server. |
+
 ---
 
 ## How it works
 
+### Standalone mode
+
 ```
 Host machine
 │
-├── mc1  (container)  ── Minecraft port 25565 ── SSH port 2221  ── student 1
-├── mc2  (container)  ── Minecraft port 25566 ── SSH port 2222  ── student 2
-├── mc3  (container)  ── Minecraft port 25567 ── SSH port 2223  ── student 3
-├── mc4  (container)  ── Minecraft port 25568 ── SSH port 2224  ── student 4
-└── mc5  (container)  ── Minecraft port 25569 ── SSH port 2225  ── student 5
+├── mc1  (container)  ── Minecraft 25565 ── SSH 2221  ── student 1
+├── mc2  (container)  ── Minecraft 25566 ── SSH 2222  ── student 2
+├── mc3  (container)  ── Minecraft 25567 ── SSH 2223  ── student 3
+├── mc4  (container)  ── Minecraft 25568 ── SSH 2224  ── student 4
+└── mc5  (container)  ── Minecraft 25569 ── SSH 2225  ── student 5
 ```
+
+### BungeeCord mode
+
+```
+Host machine
+│
+└── bungee  (container)  ── Minecraft 25565 ── public entry point
+    │
+    ├── lobby  (container, internal)  ── players land here first
+    ├── mc1    (container, internal)  ── SSH 2221  ── student 1
+    ├── mc2    (container, internal)  ── SSH 2222  ── student 2
+    ├── mc3    (container, internal)  ── SSH 2223  ── student 3
+    ├── mc4    (container, internal)  ── SSH 2224  ── student 4
+    └── mc5    (container, internal)  ── SSH 2225  ── student 5
+```
+
+All containers communicate on an internal Docker bridge network (`workshop`). Student servers have no externally reachable Minecraft port — only the BungeeCord proxy is exposed.
+
+Players use `/server mc1` … `/server mc5` in-game to switch from the lobby to a student server.
+
+---
+
+### SSH access (both modes)
 
 Each container runs Debian Trixie and contains:
 - A Spigot Minecraft server with the script4kids plugin
@@ -60,35 +92,48 @@ git clone git@github.com:cndrbrbr/minecraftHostingServer.git mchost
 cd mchost
 ```
 
-### Step 2 — Configure memory
+### Step 2 — Configure memory and choose deployment mode
 
-This script reads the host's total RAM, reserves 15 % (minimum 2 GB) for the OS and Docker, and splits the rest equally across the 5 servers. It writes the result into `docker-compose.yml` and generates the per-server start scripts.
+This script reads the host's total RAM, reserves 15 % (minimum 2 GB) for the OS and Docker, and splits the rest equally across the servers. It writes a `docker-compose.yml` from the appropriate template and generates per-server start scripts.
+
+**Choose your mode at the command line:**
 
 ```bash
 chmod +x configure-memory.sh
-./configure-memory.sh
+
+./configure-memory.sh --standalone    # 5 servers, direct Minecraft ports 25565–25569
+./configure-memory.sh --bungeecord    # BungeeCord proxy + lobby + 5 servers, single port 25565
+./configure-memory.sh                 # interactive prompt if no flag given
 ```
 
-Example output on a 16 GB machine:
+Example output on a 16 GB machine (standalone):
 
 ```
 ╔══════════════════════════════════════════════════╗
 ║         Memory configuration                     ║
 ╠══════════════════════════════════════════════════╣
+║  Mode               : standalone                 ║
 ║  Total RAM          :  16384 MB                  ║
 ║  OS reservation     :   2458 MB                  ║
-║  Available for MC   :  13926 MB                  ║
+║  Available for MC   :  13926 MB  (5 servers)
 ║  Per server (max)   :   2560 MB  (2560M)
 ║  Per server (min)   :   1280 MB  (1280M)
 ╚══════════════════════════════════════════════════╝
 
-✓ docker-compose.yml updated  (MC_MEM_MIN=1280M  MC_MEM_MAX=2560M)
+✓ docker-compose.yml written from docker-compose.standalone.yml
+✓ Memory values updated  (MC_MEM_MIN=1280M  MC_MEM_MAX=2560M)
 ✓ start-mc1.sh generated
 ✓ start-mc2.sh generated
 ...
 ```
 
-Re-run this script any time you move the setup to a different machine.
+In BungeeCord mode the output also shows:
+```
+║  BungeeCord         :    512 MB  (fixed)
+```
+and generates `start-bungee.sh` and `start-lobby.sh` in addition to the mc scripts.
+
+Re-run this script any time you move the setup to a different machine or change the mode.
 
 ### Step 3 — Generate SSH keys
 
@@ -140,7 +185,7 @@ What happens inside each container on boot:
 docker compose ps
 ```
 
-All five containers should show `running`:
+**Standalone mode** — all five mc containers should show `running`:
 
 ```
 NAME  STATUS         PORTS
@@ -149,6 +194,19 @@ mc2   Up 3 minutes   0.0.0.0:25566->25565/tcp, 0.0.0.0:2222->22/tcp
 mc3   Up 3 minutes   0.0.0.0:25567->25565/tcp, 0.0.0.0:2223->22/tcp
 mc4   Up 3 minutes   0.0.0.0:25568->25565/tcp, 0.0.0.0:2224->22/tcp
 mc5   Up 3 minutes   0.0.0.0:25569->25565/tcp, 0.0.0.0:2225->22/tcp
+```
+
+**BungeeCord mode** — bungee, lobby, and all five mc containers should show `running`:
+
+```
+NAME   STATUS         PORTS
+bungee Up 3 minutes   0.0.0.0:25565->25565/tcp
+lobby  Up 3 minutes
+mc1    Up 3 minutes   0.0.0.0:2221->22/tcp
+mc2    Up 3 minutes   0.0.0.0:2222->22/tcp
+mc3    Up 3 minutes   0.0.0.0:2223->22/tcp
+mc4    Up 3 minutes   0.0.0.0:2224->22/tcp
+mc5    Up 3 minutes   0.0.0.0:2225->22/tcp
 ```
 
 Check the logs to confirm the Minecraft server inside mc1 is ready:
@@ -169,15 +227,17 @@ Press `Ctrl+C` to stop following the log. Repeat for the other servers if needed
 
 Hand each student their two key files and their connection details. You can use the student guide template in `STUDENT.md` — fill in the host IP and SSH port before printing or sending it.
 
-| Student | Key files | SSH port | Minecraft port |
-|---------|-----------|----------|----------------|
-| 1 | `keys/mc1/sftp_key`, `keys/mc1/ctrl_key` | 2221 | 25565 |
-| 2 | `keys/mc2/sftp_key`, `keys/mc2/ctrl_key` | 2222 | 25566 |
-| 3 | `keys/mc3/sftp_key`, `keys/mc3/ctrl_key` | 2223 | 25567 |
-| 4 | `keys/mc4/sftp_key`, `keys/mc4/ctrl_key` | 2224 | 25568 |
-| 5 | `keys/mc5/sftp_key`, `keys/mc5/ctrl_key` | 2225 | 25569 |
+| Student | Key files | SSH port |
+|---------|-----------|----------|
+| 1 | `keys/mc1/sftp_key`, `keys/mc1/ctrl_key` | 2221 |
+| 2 | `keys/mc2/sftp_key`, `keys/mc2/ctrl_key` | 2222 |
+| 3 | `keys/mc3/sftp_key`, `keys/mc3/ctrl_key` | 2223 |
+| 4 | `keys/mc4/sftp_key`, `keys/mc4/ctrl_key` | 2224 |
+| 5 | `keys/mc5/sftp_key`, `keys/mc5/ctrl_key` | 2225 |
 
-Replace `<HOST>` with the actual IP or hostname of the workshop machine:
+Replace `<HOST>` with the actual IP or hostname of the workshop machine.
+
+**Standalone mode connection details:**
 
 | Student | FileZilla (SFTP) | PuTTY (SSH) | Minecraft client |
 |---------|-----------------|-------------|-----------------|
@@ -186,6 +246,18 @@ Replace `<HOST>` with the actual IP or hostname of the workshop machine:
 | 3 | `sftp://<HOST>:2223` user `mc-sftp` | `<HOST>:2223` user `mc-ctrl` | `<HOST>:25567` |
 | 4 | `sftp://<HOST>:2224` user `mc-sftp` | `<HOST>:2224` user `mc-ctrl` | `<HOST>:25568` |
 | 5 | `sftp://<HOST>:2225` user `mc-sftp` | `<HOST>:2225` user `mc-ctrl` | `<HOST>:25569` |
+
+**BungeeCord mode connection details:**
+
+All players connect to Minecraft on the same address. After joining they land in the lobby and use `/server mc1` … `/server mc5` to reach their server.
+
+| Student | FileZilla (SFTP) | PuTTY (SSH) | Minecraft client |
+|---------|-----------------|-------------|-----------------|
+| 1 | `sftp://<HOST>:2221` user `mc-sftp` | `<HOST>:2221` user `mc-ctrl` | `<HOST>:25565` |
+| 2 | `sftp://<HOST>:2222` user `mc-sftp` | `<HOST>:2222` user `mc-ctrl` | `<HOST>:25565` |
+| 3 | `sftp://<HOST>:2223` user `mc-sftp` | `<HOST>:2223` user `mc-ctrl` | `<HOST>:25565` |
+| 4 | `sftp://<HOST>:2224` user `mc-sftp` | `<HOST>:2224` user `mc-ctrl` | `<HOST>:25565` |
+| 5 | `sftp://<HOST>:2225` user `mc-sftp` | `<HOST>:2225` user `mc-ctrl` | `<HOST>:25565` |
 
 ---
 
@@ -208,15 +280,33 @@ Use the generated scripts — they pick up any configuration changes automatical
 ./start-mc3.sh
 ```
 
-### Restart only the Minecraft process inside a container
-
-Use this when a student uploads new plugins and you want to restart the server without recreating the container:
+In BungeeCord mode, there are also:
 
 ```bash
-./restart.sh 3     # restarts the Java process in mc3
+./start-bungee.sh    # restart the BungeeCord proxy
+./start-lobby.sh     # restart the lobby server
+```
+
+### Restart only the Minecraft process inside a container
+
+Use this when a student uploads new plugins and you want to restart the server without recreating the container. Students can also do this themselves via PuTTY.
+
+```bash
+docker compose exec mc3 sudo /mc-start.sh
 ```
 
 The container stays up, SSH stays available. The server is back within ~10 seconds.
+
+### In-game server switching (BungeeCord mode)
+
+Players can switch servers using the `/server` command from any server:
+
+```
+/server lobby   ← return to lobby
+/server mc1     ← go to student 1's server
+/server mc2     ← go to student 2's server
+...
+```
 
 ### Stop a single server
 
@@ -232,7 +322,7 @@ Start it again with `./start-mc2.sh`. World data is kept.
 docker compose down
 ```
 
-All containers are stopped and removed. World data, plugins, and configs survive in the named volumes (`mc1_data` … `mc5_data`).
+All containers are stopped and removed. World data, plugins, and configs survive in the named volumes (`mc1_data` … `mc5_data`, plus `bungee_data` and `lobby_data` in BungeeCord mode).
 
 To **wipe everything** including world data (fresh start):
 
@@ -246,6 +336,7 @@ docker compose down -v     # permanent — cannot be undone
 docker compose logs -f mc1          # follow mc1
 docker compose logs --tail=50 mc2   # last 50 lines of mc2
 docker compose logs -f              # follow all servers at once
+docker compose logs -f bungee       # BungeeCord proxy log (bungeecord mode)
 ```
 
 ### Open a shell inside a container
@@ -303,12 +394,24 @@ docker compose up -d --no-deps mc3
 
 The new key is active immediately on next container start. Give the student the new `keys/mc3/sftp_key` file.
 
+### Switch deployment mode
+
+Re-run `configure-memory.sh` with the new mode flag, then restart everything:
+
+```bash
+./configure-memory.sh --standalone    # or --bungeecord
+docker compose down
+docker compose up -d
+```
+
+World data is preserved in volumes. BungeeCord volumes (`bungee_data`, `lobby_data`) are created fresh if they did not exist.
+
 ### Re-run memory configuration
 
 If you move the host to a different machine or add RAM:
 
 ```bash
-./configure-memory.sh
+./configure-memory.sh --standalone    # or --bungeecord
 docker compose up -d
 ```
 
@@ -332,11 +435,33 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 
 ---
 
+## BungeeCord internals
+
+This section explains the technical choices for the BungeeCord setup.
+
+### Authentication flow
+
+- BungeeCord (`online_mode: true`) handles Mojang authentication centrally.
+- Backend servers (lobby, mc1–mc5) run with `online-mode=false` in `server.properties` — they trust the UUID forwarded by BungeeCord.
+- `ip_forward: true` is set in BungeeCord's `config.yml` so real Mojang UUIDs are passed through. This means whitelists and permissions on backend servers work correctly.
+- `bungeecord: true` is set in `spigot.yml` on all backend servers to accept the forwarded connection data.
+
+### Network isolation
+
+Backend servers are only reachable from within the `workshop` Docker bridge network. Only the BungeeCord container's port 25565 is bound to the host. Students cannot bypass the proxy.
+
+### Lobby
+
+The lobby server uses the same Spigot image as the student servers. It has no SSH keys set (`SFTP_PUBKEY` and `CTRL_PUBKEY` are empty) — it is admin-managed only. World data is stored in the `lobby_data` volume.
+
+---
+
 ## Security model
 
 | Layer | What it does |
 |-------|-------------|
 | Docker container | Each student's server is fully isolated — no access to other containers or the host filesystem |
+| Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-start.sh`; no shell access is possible |
 | sudo scope | `mc-ctrl` may only `sudo /mc-start.sh` — sudo for anything else is blocked |
@@ -351,26 +476,35 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 
 ```
 mchost/
-├── docker-compose.yml      # 5 server services with port mappings and env vars
-├── configure-memory.sh     # detect RAM → update docker-compose.yml → generate start scripts
-├── setup-keys.sh           # generate ed25519 key pairs + write .env
-├── restart.sh              # restart the MC process inside a running container
-├── start-mc1.sh            # generated by configure-memory.sh ┐
-├── start-mc2.sh            #                                  │
-├── start-mc3.sh            #                                  ├ start/restart one server
-├── start-mc4.sh            #                                  │
-├── start-mc5.sh            #                                  ┘
-├── .env                    # public SSH keys — written by setup-keys.sh
-├── .env.example            # empty template
-├── .gitignore              # excludes private keys, .env, start-mc*.sh
-├── STUDENT.md              # printable student guide (fill in IP + port before sharing)
+├── docker-compose.yml              # written by configure-memory.sh from a template
+├── docker-compose.standalone.yml   # template: 5 servers, direct MC ports 25565–25569
+├── docker-compose.bungeecord.yml   # template: bungee + lobby + 5 servers, single port
+├── configure-memory.sh             # detect RAM → write docker-compose.yml → generate start scripts
+├── setup-keys.sh                   # generate ed25519 key pairs + write .env
+├── start-mc1.sh                    # generated by configure-memory.sh ┐
+├── start-mc2.sh                    #                                  │
+├── start-mc3.sh                    #                                  ├ start/restart one server
+├── start-mc4.sh                    #                                  │
+├── start-mc5.sh                    #                                  ┘
+├── start-bungee.sh                 # generated in bungeecord mode — restart BungeeCord proxy
+├── start-lobby.sh                  # generated in bungeecord mode — restart lobby server
+├── .env                            # public SSH keys — written by setup-keys.sh
+├── .env.example                    # empty template
+├── .gitignore                      # excludes private keys, .env, start-mc*.sh
+├── LICENSE                         # Apache 2.0
+├── STUDENT.md                      # printable student guide (fill in IP + port before sharing)
+├── bungee/
+│   ├── Dockerfile                  # debian:trixie-slim + openjdk + BungeeCord.jar
+│   ├── entrypoint.sh               # copies config on first run, starts BungeeCord
+│   └── config.yml                  # online_mode, ip_forward, server list, listener
 └── spigot/
-    ├── Dockerfile          # debian:trixie-slim, openssh-server, two SSH users
-    ├── entrypoint.sh       # generates SSH host keys → starts sshd → builds Spigot → runs MC
-    ├── sshd_config         # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
-    ├── mc-start.sh         # the only command mc-ctrl can run (restarts Minecraft)
-    ├── watch_copy.sh       # inotify helper: keeps server.properties in sync with volume
-    ├── server.properties   # default server config (copied to volume on first run)
-    ├── eula.txt            # eula=true
-    └── whitelist.json      # empty by default; students can edit via FileZilla
+    ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
+    ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds Spigot → runs MC
+    ├── sshd_config                 # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
+    ├── mc-start.sh                 # the only command mc-ctrl can run (restarts Minecraft)
+    ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume
+    ├── server.properties           # default server config (copied to volume on first run)
+    ├── spigot.yml                  # bungeecord: true (required for BungeeCord IP forwarding)
+    ├── eula.txt                    # eula=true
+    └── whitelist.json              # empty by default; students can edit via FileZilla
 ```
