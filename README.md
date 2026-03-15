@@ -339,6 +339,22 @@ docker compose logs -f              # follow all servers at once
 docker compose logs -f bungee       # BungeeCord proxy log (bungeecord mode)
 ```
 
+### Open the Minecraft server console
+
+Use `docker attach` to connect directly to the Minecraft console of a running container. You can type server commands (e.g. `say`, `op`, `kick`) interactively.
+
+```bash
+docker attach mc1
+```
+
+You will see the live server log and can type commands immediately.
+
+**Important — detach without stopping the server:**
+
+Press **`Ctrl+P`** then **`Ctrl+Q`** to detach and leave the server running.
+
+> Do **not** press `Ctrl+C` — that sends SIGINT to the Java process and stops the server.
+
 ### Open a shell inside a container
 
 ```bash
