@@ -1,0 +1,67 @@
+# BungeeCord configuration
+# ─────────────────────────────────────────────────────────────
+# online_mode: true   — BungeeCord authenticates against Mojang
+# ip_forward:  true   — real Mojang UUID forwarded to backends
+#                       (requires bungeecord: true in spigot.yml
+#                        on every backend server)
+# ─────────────────────────────────────────────────────────────
+
+servers:
+  lobby:
+    motd: '&6JavaScript Minecraft Workshop &7— Lobby'
+    address: lobby:25565
+    restricted: false
+  mc1:
+    motd: '&aWorkshop Server 1'
+    address: mc1:25565
+    restricted: false
+  mc2:
+    motd: '&aWorkshop Server 2'
+    address: mc2:25565
+    restricted: false
+  mc3:
+    motd: '&aWorkshop Server 3'
+    address: mc3:25565
+    restricted: false
+  mc4:
+    motd: '&aWorkshop Server 4'
+    address: mc4:25565
+    restricted: false
+  mc5:
+    motd: '&aWorkshop Server 5'
+    address: mc5:25565
+    restricted: false
+
+listeners:
+- host: 0.0.0.0:25565
+  motd: '&6JavaScript Minecraft Workshop'
+  max_players: 30
+  tab_size: 60
+  tab_list: GLOBAL_PING
+  ping_passthrough: false
+  query_enabled: false
+  query_port: 25577
+  bind_local_address: true
+  force_default_server: false
+  priorities:
+  - lobby
+
+permissions:
+  default:
+  - bungeecord.command.server
+  - bungeecord.command.list
+  admin:
+  - bungeecord.command.alert
+  - bungeecord.command.end
+  - bungeecord.command.ip
+  - bungeecord.command.reload
+
+online_mode: true
+enforce_secure_profile: false
+ip_forward: true
+prevent_proxy_connections: false
+connection_throttle: 4000
+connection_throttle_limit: 3
+timeout: 30000
+log_commands: false
+network_compression_threshold: 256

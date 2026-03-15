@@ -51,6 +51,7 @@ cp /server-base/plugins/*.jar /server/data/plugins/
 # ── Config: copy to volume on first run only ─────────────────
 [ -f /server/eula.txt ]                       || echo "eula=true" > /server/eula.txt
 [ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
+[ -f /server/data/cfg/spigot.yml ]            || cp /server-base/spigot.yml /server/data/cfg/spigot.yml
 [ -f /server/whitelist.json ]                 || cp /server-base/whitelist.json /server/whitelist.json
 
 # ── Permissions for ChrootDirectory ──────────────────────────

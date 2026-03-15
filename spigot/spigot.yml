@@ -1,0 +1,4 @@
+# Minimal spigot.yml template — Spigot adds all other defaults on first start.
+# bungeecord: true is required so BungeeCord can forward real Mojang UUIDs.
+settings:
+  bungeecord: true

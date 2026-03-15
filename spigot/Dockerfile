@@ -58,7 +58,7 @@ WORKDIR /server-base
 COPY --from=plugin-builder /build/target/jsmn-1.0-SNAPSHOT.jar plugins/
 
 # Server config
-COPY eula.txt server.properties whitelist.json ./
+COPY eula.txt server.properties whitelist.json spigot.yml ./
 
 # Scripts
 COPY entrypoint.sh /entrypoint.sh
