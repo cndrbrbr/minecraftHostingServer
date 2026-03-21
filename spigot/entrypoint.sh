@@ -2,6 +2,10 @@
 set -e
 
 SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
+# Allow student to override version via /server/.version (set by mc-version.sh)
+if [ -f /server/.version ]; then
+    SPIGOT_VERSION=$(cat /server/.version | tr -d '[:space:]')
+fi
 SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
 
 # ── SSH host keys ────────────────────────────────────────────

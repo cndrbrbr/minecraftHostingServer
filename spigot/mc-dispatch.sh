@@ -13,9 +13,15 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     stop)
         exec sudo /mc-stop.sh
         ;;
+    version\ *)
+        VERSION="${SSH_ORIGINAL_COMMAND#version }"
+        exec sudo /mc-version.sh "$VERSION"
+        ;;
     *)
         echo "Usage: ssh mc-ctrl@<host> -p <port> start"
         echo "       ssh mc-ctrl@<host> -p <port> stop"
+        echo "       ssh mc-ctrl@<host> -p <port> version <version>"
+        echo "Example: ssh mc-ctrl@<host> -p <port> version 1.20.4"
         exit 1
         ;;
 esac

@@ -10,7 +10,7 @@
 #
 # Two SSH users per container:
 #   mc-sftp  — FileZilla SFTP access, chrooted to /server
-#   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop)
+#   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop / version)
 # ============================================================
 
 # ── Stage 1: Build plugin ───────────────────────────────────
@@ -48,8 +48,8 @@ RUN mkdir -p /home/mc-sftp/.ssh /home/mc-ctrl/.ssh && \
     chown mc-ctrl:mc-ctrl /home/mc-ctrl/.ssh && \
     chmod 700 /home/mc-sftp/.ssh /home/mc-ctrl/.ssh
 
-# mc-ctrl may only sudo the start and stop scripts (no TTY required)
-RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh\n' \
+# mc-ctrl may only sudo the control scripts (no TTY required)
+RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh, /mc-version.sh\n' \
     > /etc/sudoers.d/mc-ctrl && chmod 440 /etc/sudoers.d/mc-ctrl
 
 WORKDIR /server-base
@@ -66,11 +66,12 @@ COPY watch_copy.sh   /watch_copy.sh
 COPY mc-dispatch.sh  /mc-dispatch.sh
 COPY mc-start.sh     /mc-start.sh
 COPY mc-stop.sh      /mc-stop.sh
+COPY mc-version.sh   /mc-version.sh
 
 # SSH server config
 COPY sshd_config /etc/ssh/sshd_config
 
-RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh
+RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh /mc-version.sh
 
 WORKDIR /server
 
