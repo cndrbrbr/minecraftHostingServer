@@ -57,7 +57,7 @@ Each container runs Debian Trixie and contains:
 | SSH user | Tool | Permission |
 |----------|------|------------|
 | `mc-sftp` | FileZilla | SFTP only, restricted to the server's data folder |
-| `mc-ctrl` | PuTTY | Runs the server restart script — nothing else |
+| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, or `version <x.x.x>` — nothing else |
 
 Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
 
@@ -287,12 +287,25 @@ In BungeeCord mode, there are also:
 ./start-lobby.sh     # restart the lobby server
 ```
 
-### Restart only the Minecraft process inside a container
+### Student server control (start / stop / version)
 
-Use this when a student uploads new plugins and you want to restart the server without recreating the container. Students can also do this themselves via PuTTY.
+Students control their own Minecraft process via SSH using their `ctrl_key`. The container and SSH stay up at all times — only the Java process inside is affected.
 
 ```bash
-docker compose exec mc3 sudo /mc-start.sh
+# From the host (admin):
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost stop
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost start
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost version 1.20.4
+```
+
+Students do the same from their own machine using PuTTY (see `STUDENT.md`).
+
+**How versioning works:** `version <x.x.x>` writes the requested version to the container volume. The change takes effect after the next `stop` + `start`. If that version has never been built before, BuildTools compiles it on first start (5–10 minutes). Subsequent starts with the same version are instant because the JAR is cached on the volume.
+
+### Restart only the Minecraft process inside a container (admin shortcut)
+
+```bash
+docker compose exec mc3 bash -c 'rm -f /server/.stopped && pkill -TERM -f "spigot-.*\.jar" 2>/dev/null; true'
 ```
 
 The container stays up, SSH stays available. The server is back within ~10 seconds.
@@ -444,7 +457,7 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | `MC_MEM_MIN` | `configure-memory.sh` | JVM minimum heap |
 | `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
-| `SPIGOT_VERSION` | `docker-compose.yml` | Spigot version to build |
+| `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build (can be overridden per-server by the student via `version` command) |
 | `FORCE_BUILD` | `docker-compose.yml` | `true` to force Spigot rebuild on next start |
 | `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
 | `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
@@ -479,8 +492,8 @@ The lobby server uses the same Spigot image as the student servers. It has no SS
 | Docker container | Each student's server is fully isolated — no access to other containers or the host filesystem |
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
-| ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-start.sh`; no shell access is possible |
-| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh` — sudo for anything else is blocked |
+| ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
+| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh` — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
 | No forwarding | TCP, X11, and agent forwarding are disabled |
 
@@ -517,7 +530,10 @@ mchost/
     ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
     ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds Spigot → runs MC
     ├── sshd_config                 # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
-    ├── mc-start.sh                 # the only command mc-ctrl can run (restarts Minecraft)
+    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version
+    ├── mc-start.sh                 # removes .stopped marker → entrypoint loop launches the server
+    ├── mc-stop.sh                  # creates .stopped marker + kills Java → server stays down
+    ├── mc-version.sh               # writes requested version to /server/.version on the volume
     ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume
     ├── server.properties           # default server config (copied to volume on first run)
     ├── spigot.yml                  # bungeecord: true (required for BungeeCord IP forwarding)

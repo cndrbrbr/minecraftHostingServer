@@ -111,9 +111,17 @@ After connecting you land directly in your server's data folder `/data/`:
 
 ---
 
-## Part 2 — PuTTY: restart your server
+## Part 2 — PuTTY: start, stop and change version
 
-PuTTY lets you send a restart command to your server. The connection closes automatically — you do not get a terminal or shell.
+PuTTY lets you send commands to your server. The connection closes automatically after each command — you do not get a terminal or shell.
+
+You can send three commands:
+
+| Command | What it does |
+|---------|-------------|
+| `stop` | Stops the Minecraft server |
+| `start` | Starts the Minecraft server again |
+| `version 1.20.4` | Switches to a different Spigot version (takes effect after stop + start) |
 
 ### Install PuTTY
 
@@ -134,41 +142,69 @@ PuTTY uses a different key format than the `ctrl_key` file you received. You nee
 
 You only need to do this once.
 
-### Save a PuTTY session (do this once)
+### Save PuTTY sessions (do this once)
 
-Setting up the connection once and saving it means you can reconnect with two clicks next time.
+Save a separate session for each command so you can run them with two clicks.
+
+**For each of the three sessions, follow these steps — only the Session Name and Remote command differ:**
 
 1. Open **PuTTY**.
-2. In the left tree, make sure **Session** is selected (it is by default).
+2. In the left tree make sure **Session** is selected.
 3. Fill in:
    - **Host Name:** the host address (e.g. `192.168.1.100`)
    - **Port:** your SSH port (e.g. `2221`)
    - **Connection type:** SSH
-4. In the left tree go to **Connection → SSH → Auth → Credentials**.
-5. Next to *"Private key file for authentication"* click **Browse…**.
-6. Navigate to your `ctrl_key.ppk` file and click **Open**.
-7. In the left tree go back to **Session**.
-8. In the **Saved Sessions** field type a name, for example `mc-workshop`.
-9. Click **Save**.
+4. In the left tree go to **Connection → Data**.
+5. In the **Auto-login username** field type `mc-ctrl`.
+6. In the left tree go to **Connection → SSH**.
+7. In the **Remote command** field type the command for this session (see table below).
+8. In the left tree go to **Connection → SSH → Auth → Credentials**.
+9. Next to *"Private key file for authentication"* click **Browse…** and open your `ctrl_key.ppk`.
+10. In the left tree go back to **Session**.
+11. Type the session name in the **Saved Sessions** field and click **Save**.
 
-### Restart the server
+| Session name | Remote command |
+|---|---|
+| `mc-stop` | `stop` |
+| `mc-start` | `start` |
+| `mc-version-1.20.4` | `version 1.20.4` *(change the number as needed)* |
 
-1. Open **PuTTY**.
-2. In the **Saved Sessions** list, double-click **mc-workshop** (or select it and click **Open**).
-3. The first time you connect, PuTTY shows a security warning about the host key — click **Accept**.
-4. A small terminal window appears. Type `mc-ctrl` and press **Enter** as the username.
+### Stop the server
 
-   > On some setups PuTTY fills the username automatically. If it does, you skip the typing step.
-
-5. The terminal shows:
-
+1. Open **PuTTY** and double-click **mc-stop**.
+2. The first time, PuTTY shows a security warning — click **Accept**.
+3. The terminal shows:
    ```
-   ==> Stopping Minecraft server...
-   ==> Server will restart automatically in a few seconds.
+   ==> Server stopped.
+   ==> Use the start command to bring it back up.
    ==> You may close this connection.
    ```
+4. Close the window. Players can no longer connect to your server.
 
-6. You can close the PuTTY window. Your server restarts within about 10 seconds.
+### Start the server
+
+1. Open **PuTTY** and double-click **mc-start**.
+2. The terminal shows:
+   ```
+   ==> Starting Minecraft server — it will be available in a few seconds.
+   ==> You may close this connection.
+   ```
+3. Close the window. Wait about 30 seconds, then connect from Minecraft.
+
+### Change the Spigot version
+
+1. Open **PuTTY** and double-click the version session (e.g. `mc-version-1.20.4`).
+2. The terminal shows:
+   ```
+   ==> Version set to 1.20.4.
+   ==> Run 'stop' then 'start' to apply.
+   ==> If this version has not been used before, the first start
+   ==> will take several minutes to compile it.
+   ```
+3. Now run **mc-stop**, then **mc-start**.
+4. If this is the first time that version is used, the server takes several minutes to start while it compiles. Wait for the Minecraft server to become reachable before connecting.
+
+> To set a different version later, create a new PuTTY session with a different **Remote command** (e.g. `version 1.21.1`) and save it under a new name.
 
 ---
 
@@ -176,8 +212,8 @@ Setting up the connection once and saving it means you can reconnect with two cl
 
 1. Write or edit your script / plugin on your computer.
 2. Open FileZilla → upload the `.jar` file to `/data/plugins/` (or edit config files in `/data/cfg/`).
-3. Open PuTTY → restart the server.
-4. Wait ~10 seconds, then connect to Minecraft and test your changes.
+3. Open PuTTY → run **mc-stop**, then **mc-start**.
+4. Wait ~30 seconds, then connect to Minecraft and test your changes.
 5. Repeat.
 
 ---
@@ -206,8 +242,13 @@ The server must be running before you can connect. If it just restarted, wait 10
 - You may have the wrong key file — check that you are using `sftp_key.ppk` (not `ctrl_key` or `ctrl_key.ppk`).
 
 **PuTTY says "Access denied"**
-- Type the username exactly: `mc-ctrl` (all lowercase, hyphen between mc and ctrl).
+- Make sure the **Auto-login username** in the session is set to `mc-ctrl`.
 - Make sure you loaded `ctrl_key.ppk` (the converted file, not `ctrl_key`).
+- Check that the **Remote command** in the session is exactly `stop`, `start`, or `version 1.x.x`.
+
+**PuTTY opens and closes immediately without showing any message**
+- This is normal — it means the command ran successfully.
+- If it happens for `start`, wait 30 seconds and try to connect from Minecraft.
 
 **PuTTY shows "The server's host key is not cached"**
 - Click **Accept** — this is normal on the first connection.
