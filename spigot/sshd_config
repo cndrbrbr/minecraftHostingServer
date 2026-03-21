@@ -40,9 +40,9 @@ Match User mc-sftp
     AllowAgentForwarding no
 
 # ── Control user (PuTTY) ─────────────────────────────────────
-# May only trigger a server restart; nothing else
+# Dispatcher reads SSH_ORIGINAL_COMMAND to run start or stop
 Match User mc-ctrl
-    ForceCommand sudo /mc-start.sh
+    ForceCommand /mc-dispatch.sh
     AllowTcpForwarding no
     X11Forwarding no
     AllowAgentForwarding no

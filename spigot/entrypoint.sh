@@ -67,12 +67,18 @@ chmod -R u+rwX,go+rX /server/data
 
 # ── Start server with auto-restart loop ─────────────────────
 # Exits only when /server/.shutdown exists (docker stop).
-# A SIGTERM from mc-start.sh causes a non-zero exit → restart.
+# A SIGTERM from mc-stop.sh causes a non-zero exit → paused (not restarted)
+# when /server/.stopped is present. mc-start.sh removes .stopped to resume.
 cd /server
 echo "==> Starting Minecraft server ${SPIGOT_VERSION}..."
 
 while true; do
-    java \
+    # Wait while the student has manually stopped the server
+    while [ -f /server/.stopped ]; do
+        sleep 2
+    done
+
+    runuser -u mc-sftp -- java \
         -Xms${MC_MEM_MIN:-512M} \
         -Xmx${MC_MEM_MAX:-1G} \
         --add-opens=java.base/java.lang=ALL-UNNAMED \
@@ -88,7 +94,7 @@ while true; do
         --plugins       "./data/plugins" \
         --world-dir     "./data/worlds" \
         --level-name    "${MC_LEVELNAME:-world}" \
-        --max-players   "${MC_MAXPLAYERS:-5}" \
+        --max-players   "${MC_MAXPLAYERS:-20}" \
         --port          "${MC_PORT:-25565}" \
         nogui || true
 
@@ -96,6 +102,12 @@ while true; do
     if [ -f /server/.shutdown ]; then
         echo "==> Shutdown requested — exiting."
         exit 0
+    fi
+
+    # Student manually stopped the server — pause until start is called
+    if [ -f /server/.stopped ]; then
+        echo "==> Server stopped by student — waiting for start command..."
+        continue
     fi
 
     echo "==> Server stopped — restarting in 5 seconds..."

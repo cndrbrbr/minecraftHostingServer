@@ -10,7 +10,7 @@
 #
 # Two SSH users per container:
 #   mc-sftp  — FileZilla SFTP access, chrooted to /server
-#   mc-ctrl  — PuTTY access, forced to run /mc-start.sh only
+#   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop)
 # ============================================================
 
 # ── Stage 1: Build plugin ───────────────────────────────────
@@ -37,7 +37,7 @@ RUN mkdir -p /buildtools && \
 
 # ── SSH users ────────────────────────────────────────────────
 # mc-sftp: SFTP-only, chrooted to /server (FileZilla)
-# mc-ctrl: restricted shell, forced to /mc-start.sh (PuTTY)
+# mc-ctrl: restricted shell, dispatched via /mc-dispatch.sh (PuTTY)
 RUN groupadd -g 2001 mc-sftp && \
     useradd -u 2001 -g mc-sftp -s /usr/sbin/nologin -M mc-sftp && \
     groupadd -g 2002 mc-ctrl && \
@@ -48,8 +48,8 @@ RUN mkdir -p /home/mc-sftp/.ssh /home/mc-ctrl/.ssh && \
     chown mc-ctrl:mc-ctrl /home/mc-ctrl/.ssh && \
     chmod 700 /home/mc-sftp/.ssh /home/mc-ctrl/.ssh
 
-# mc-ctrl may only sudo the start script (no TTY required)
-RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh\n' \
+# mc-ctrl may only sudo the start and stop scripts (no TTY required)
+RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh\n' \
     > /etc/sudoers.d/mc-ctrl && chmod 440 /etc/sudoers.d/mc-ctrl
 
 WORKDIR /server-base
@@ -61,14 +61,16 @@ COPY --from=plugin-builder /build/target/jsmn-1.0-SNAPSHOT.jar plugins/
 COPY eula.txt server.properties whitelist.json spigot.yml ./
 
 # Scripts
-COPY entrypoint.sh /entrypoint.sh
-COPY watch_copy.sh /watch_copy.sh
-COPY mc-start.sh   /mc-start.sh
+COPY entrypoint.sh   /entrypoint.sh
+COPY watch_copy.sh   /watch_copy.sh
+COPY mc-dispatch.sh  /mc-dispatch.sh
+COPY mc-start.sh     /mc-start.sh
+COPY mc-stop.sh      /mc-stop.sh
 
 # SSH server config
 COPY sshd_config /etc/ssh/sshd_config
 
-RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-start.sh
+RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh
 
 WORKDIR /server
 
