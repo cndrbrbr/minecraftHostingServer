@@ -64,6 +64,9 @@ chown root:root /server
 chmod 755 /server
 # Students write to /server/data via SFTP
 chown -R mc-sftp:mc-sftp /server/data
+# Spigot unpacks itself into /server/bundler — must be writable by mc-sftp
+mkdir -p /server/bundler
+chown -R mc-sftp:mc-sftp /server/bundler
 chmod -R u+rwX,go+rX /server/data
 
 # ── watch_copy: push image config changes to volume at runtime
