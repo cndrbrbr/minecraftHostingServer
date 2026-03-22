@@ -65,11 +65,27 @@ chown -R mc-sftp:mc-sftp /server/data
 mkdir -p /server/bundler
 chown -R mc-sftp:mc-sftp /server/bundler
 chmod -R u+rwX,go+rX /server/data
-# whitelist.json and ops.json live in /server/ (not /server/data/) and must
-# be writable by both root (mc-adduser.sh via sudo) and mc-sftp (Java process)
-[ -f /server/ops.json ] || echo '[]' > /server/ops.json
-chown root:mc-sftp /server/whitelist.json /server/ops.json
-chmod 664 /server/whitelist.json /server/ops.json
+# /server/ is root:root 755 (SSH chroot requirement) so mc-sftp cannot create
+# new files there. Pre-create every file Spigot writes to its working dir so
+# the Java process (mc-sftp) can open them for writing.
+[ -f /server/ops.json ]            || echo '[]' > /server/ops.json
+[ -f /server/banned-players.json ] || echo '[]' > /server/banned-players.json
+[ -f /server/banned-ips.json ]     || echo '[]' > /server/banned-ips.json
+[ -f /server/usercache.json ]      || echo '[]' > /server/usercache.json
+[ -f /server/help.yml ]            || touch /server/help.yml
+[ -f /server/permissions.yml ]     || touch /server/permissions.yml
+chown root:mc-sftp \
+    /server/whitelist.json /server/ops.json \
+    /server/banned-players.json /server/banned-ips.json \
+    /server/usercache.json /server/help.yml /server/permissions.yml
+chmod 664 \
+    /server/whitelist.json /server/ops.json \
+    /server/banned-players.json /server/banned-ips.json \
+    /server/usercache.json /server/help.yml /server/permissions.yml
+# Spigot also needs to write into logs/ and crash-reports/
+mkdir -p /server/logs /server/crash-reports
+chown root:mc-sftp /server/logs /server/crash-reports
+chmod 775 /server/logs /server/crash-reports
 
 # ── watch_copy: push image config changes to volume at runtime
 /watch_copy.sh /server-base/server.properties /server/data/cfg/server.properties &
