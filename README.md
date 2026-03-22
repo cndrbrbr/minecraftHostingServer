@@ -453,7 +453,6 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | Variable | Set by | Description |
 |----------|--------|-------------|
 | `MC_PORT` | fixed `25565` | Internal Minecraft port (do not change) |
-| `MC_MAXPLAYERS` | `docker-compose.yml` | Max players per server |
 | `MC_MEM_MIN` | `configure-memory.sh` | JVM minimum heap |
 | `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
@@ -461,6 +460,14 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | `FORCE_BUILD` | `docker-compose.yml` | `true` to force Spigot rebuild on next start |
 | `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
 | `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
+
+### Changing max players
+
+`max-players` is **not** controlled by an environment variable. It is read directly from `server.properties` on the volume. The image default is **20**.
+
+To change it for a specific server, edit `data/cfg/server.properties` via FileZilla and set `max-players=<N>`, then restart the server. Students can do this themselves.
+
+To change the default for all fresh servers, edit `spigot/server.properties` in the repository and rebuild the image.
 
 ---
 
