@@ -1,4 +1,5 @@
 # Minimal spigot.yml template — Spigot adds all other defaults on first start.
-# bungeecord: true is required so BungeeCord can forward real Mojang UUIDs.
+# bungeecord: true is only needed when running behind a BungeeCord proxy.
+# Set the MC_BUNGEECORD env var to "true" in docker-compose.yml to enable it.
 settings:
-  bungeecord: true
+  bungeecord: false

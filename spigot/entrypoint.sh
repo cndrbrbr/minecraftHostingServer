@@ -41,8 +41,17 @@ cp /server-base/plugins/*.jar /server/data/plugins/
 # ── Config: copy to volume on first run only ─────────────────
 [ -f /server/eula.txt ]                       || echo "eula=true" > /server/eula.txt
 [ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
-[ -f /server/data/cfg/spigot.yml ]            || cp /server-base/spigot.yml /server/data/cfg/spigot.yml
 [ -f /server/whitelist.json ]                 || cp /server-base/whitelist.json /server/whitelist.json
+
+# spigot.yml: copy on first run, then patch bungeecord flag from env
+if [ ! -f /server/data/cfg/spigot.yml ]; then
+    cp /server-base/spigot.yml /server/data/cfg/spigot.yml
+fi
+if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
+    sed -i 's/bungeecord: false/bungeecord: true/' /server/data/cfg/spigot.yml
+else
+    sed -i 's/bungeecord: true/bungeecord: false/' /server/data/cfg/spigot.yml
+fi
 
 # ── Permissions for ChrootDirectory ──────────────────────────
 # /server must be root:root 755 (sshd ChrootDirectory requirement)
