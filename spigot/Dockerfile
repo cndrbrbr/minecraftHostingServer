@@ -28,7 +28,7 @@ FROM debian:trixie-slim
 # GraalVM Community JDK 21 is required for the jsmn JS engine.
 # Standard OpenJDK cannot initialize the GraalVM polyglot engine.
 # Update GRAALVM_VERSION to pick up new patch releases.
-ARG GRAALVM_VERSION=21.0.2
+ARG GRAALVM_VERSION=21.0.6
 
 RUN apt-get update && apt-get install -y \
     git curl inotify-tools \

@@ -126,6 +126,7 @@ while true; do
     runuser -u mc-sftp -- java \
         -Xms${MC_MEM_MIN:-512M} \
         -Xmx${MC_MEM_MAX:-1G} \
+        -Dpolyglot.engine.WarnInterpreterOnly=false \
         --add-opens=java.base/java.lang=ALL-UNNAMED \
         --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
         --add-opens=java.base/java.lang.ref=ALL-UNNAMED \
