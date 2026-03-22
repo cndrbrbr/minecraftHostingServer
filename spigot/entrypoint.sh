@@ -101,7 +101,6 @@ while true; do
         --plugins       "./data/plugins" \
         --world-dir     "./data/worlds" \
         --level-name    "${MC_LEVELNAME:-world}" \
-        --max-players   "${MC_MAXPLAYERS:-20}" \
         --port          "${MC_PORT:-25565}" \
         nogui || true
 
