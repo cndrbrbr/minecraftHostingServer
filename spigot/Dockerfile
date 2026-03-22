@@ -22,24 +22,23 @@ RUN git clone --depth=1 https://github.com/cndrbrbr/script4kids.git /build
 WORKDIR /build
 RUN mvn clean package -DskipTests -q
 
+# ── Stage 2a: GraalVM JDK ───────────────────────────────────
+# Pull the official GraalVM Community image and copy the JDK out of it.
+# The graalvm-ce-builds GitHub repo only goes to 21.0.2; this image
+# always carries the latest GraalVM CE for JDK 21 (SDK 24.1.x).
+FROM ghcr.io/graalvm/jdk-community:21 AS graalvm-jdk
+RUN cp -r "$JAVA_HOME" /opt/graalvm-jdk
+
 # ── Stage 2: Runtime ────────────────────────────────────────
 FROM debian:trixie-slim
-
-# GraalVM Community JDK 21 is required for the jsmn JS engine.
-# Standard OpenJDK cannot initialize the GraalVM polyglot engine.
-# Update GRAALVM_VERSION to pick up new patch releases.
-ARG GRAALVM_VERSION=21.0.6
 
 RUN apt-get update && apt-get install -y \
     git curl inotify-tools \
     openssh-server sudo zip unzip jq python3-minimal \
     && rm -rf /var/lib/apt/lists/*
 
-RUN curl -fsSL \
-    "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-x64_bin.tar.gz" \
-    | tar -xz -C /opt/ && \
-    mv /opt/graalvm-community-openjdk-* /opt/graalvm
-
+# GraalVM Community JDK 21 — copied from official image above
+COPY --from=graalvm-jdk /opt/graalvm-jdk /opt/graalvm
 ENV JAVA_HOME=/opt/graalvm
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
