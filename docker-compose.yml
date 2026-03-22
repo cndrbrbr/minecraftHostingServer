@@ -1,49 +1,8 @@
 services:
 
-  # ── BungeeCord proxy ────────────────────────────────────────
-  # Single public entry point for all Minecraft clients.
-  # Handles Mojang auth centrally and routes players to servers.
-  bungee:
-    build: ./bungee
-    container_name: bungee
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    ports:
-      - "25565:25565"   # only public Minecraft port
-    environment:
-      BUNGEE_MEM_MAX: "512M"
-    volumes:
-      - bungee_data:/bungee
-    networks:
-      - workshop
-
-  # ── Lobby server ────────────────────────────────────────────
-  # Players land here first. No host MC port — only reachable
-  # via BungeeCord. No SSH access needed (admin-managed only).
-  lobby:
-    build: ./spigot
-    container_name: lobby
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    environment:
-      MC_LEVELNAME: world
-      MC_MAXPLAYERS: "30"
-      MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
-      FORCE_BUILD: "false"
-      SFTP_PUBKEY: ""
-      CTRL_PUBKEY: ""
-    volumes:
-      - lobby_data:/server
-    networks:
-      - workshop
-
-  # ── Student servers ─────────────────────────────────────────
-  # No host MC port — only reachable via BungeeCord.
-  # SSH ports remain open for FileZilla and PuTTY access.
+  # ── Student servers — standalone mode ───────────────────────
+  # Each server is directly reachable by Minecraft clients.
+  # No BungeeCord proxy, no lobby.
 
   mc1:
     build: ./spigot
@@ -52,6 +11,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "25565:25565"   # Minecraft — student 1
       - "2221:22"       # SSH (FileZilla + PuTTY) — student 1
     environment:
       MC_LEVELNAME: world
@@ -64,8 +24,6 @@ services:
       CTRL_PUBKEY: "${MC1_CTRL_PUBKEY}"
     volumes:
       - mc1_data:/server
-    networks:
-      - workshop
 
   mc2:
     build: ./spigot
@@ -74,6 +32,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "25566:25565"   # Minecraft — student 2
       - "2222:22"       # SSH — student 2
     environment:
       MC_LEVELNAME: world
@@ -86,8 +45,6 @@ services:
       CTRL_PUBKEY: "${MC2_CTRL_PUBKEY}"
     volumes:
       - mc2_data:/server
-    networks:
-      - workshop
 
   mc3:
     build: ./spigot
@@ -96,6 +53,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "25567:25565"   # Minecraft — student 3
       - "2223:22"       # SSH — student 3
     environment:
       MC_LEVELNAME: world
@@ -108,8 +66,6 @@ services:
       CTRL_PUBKEY: "${MC3_CTRL_PUBKEY}"
     volumes:
       - mc3_data:/server
-    networks:
-      - workshop
 
   mc4:
     build: ./spigot
@@ -118,6 +74,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "25568:25565"   # Minecraft — student 4
       - "2224:22"       # SSH — student 4
     environment:
       MC_LEVELNAME: world
@@ -130,8 +87,6 @@ services:
       CTRL_PUBKEY: "${MC4_CTRL_PUBKEY}"
     volumes:
       - mc4_data:/server
-    networks:
-      - workshop
 
   mc5:
     build: ./spigot
@@ -140,6 +95,7 @@ services:
     stdin_open: true
     tty: true
     ports:
+      - "25569:25565"   # Minecraft — student 5
       - "2225:22"       # SSH — student 5
     environment:
       MC_LEVELNAME: world
@@ -152,18 +108,10 @@ services:
       CTRL_PUBKEY: "${MC5_CTRL_PUBKEY}"
     volumes:
       - mc5_data:/server
-    networks:
-      - workshop
 
 volumes:
-  bungee_data:
-  lobby_data:
   mc1_data:
   mc2_data:
   mc3_data:
   mc4_data:
   mc5_data:
-
-networks:
-  workshop:
-    driver: bridge
