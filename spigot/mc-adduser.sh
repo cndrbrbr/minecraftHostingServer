@@ -35,7 +35,7 @@ if [ "$ONLINE_MODE" != "false" ]; then
         echo "       Check the spelling and try again."
         exit 1
     fi
-    UUID_FLAT=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+    UUID_FLAT=$(echo "$RESPONSE" | jq -r '.id // empty')
     if [ -z "$UUID_FLAT" ]; then
         echo "ERROR: Unexpected response from Mojang API."
         exit 1
