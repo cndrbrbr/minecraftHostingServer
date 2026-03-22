@@ -66,9 +66,9 @@ mkdir -p /server/bundler
 chown -R mc-sftp:mc-sftp /server/bundler
 chmod -R u+rwX,go+rX /server/data
 # whitelist.json and ops.json live in /server/ (not /server/data/) and must
-# be writable by mc-sftp (the user running the Java process)
+# be writable by both root (mc-adduser.sh via sudo) and mc-sftp (Java process)
 [ -f /server/ops.json ] || echo '[]' > /server/ops.json
-chown mc-sftp:mc-sftp /server/whitelist.json /server/ops.json
+chown root:mc-sftp /server/whitelist.json /server/ops.json
 chmod 664 /server/whitelist.json /server/ops.json
 
 # ── watch_copy: push image config changes to volume at runtime

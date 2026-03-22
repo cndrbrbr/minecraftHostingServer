@@ -66,7 +66,7 @@ echo "==> UUID: $UUID"
 jq --arg name "$USERNAME" --arg uuid "$UUID" \
     'if any(.[]; .name == $name) then . else . + [{"uuid": $uuid, "name": $name}] end' \
     "$WHITELIST_FILE" > /tmp/mc-wl.tmp && mv /tmp/mc-wl.tmp "$WHITELIST_FILE"
-chown mc-sftp:mc-sftp "$WHITELIST_FILE"
+chown root:mc-sftp "$WHITELIST_FILE" && chmod 664 "$WHITELIST_FILE"
 echo "==> '$USERNAME' added to whitelist."
 
 # ── Ops ───────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ echo "==> '$USERNAME' added to whitelist."
 jq --arg name "$USERNAME" --arg uuid "$UUID" \
     'if any(.[]; .name == $name) then . else . + [{"uuid": $uuid, "name": $name, "level": 4, "bypassesPlayerLimit": false}] end' \
     "$OPS_FILE" > /tmp/mc-ops.tmp && mv /tmp/mc-ops.tmp "$OPS_FILE"
-chown mc-sftp:mc-sftp "$OPS_FILE"
+chown root:mc-sftp "$OPS_FILE" && chmod 664 "$OPS_FILE"
 echo "==> '$USERNAME' added to ops (level 4)."
 
 # ── Live reload ───────────────────────────────────────────────
