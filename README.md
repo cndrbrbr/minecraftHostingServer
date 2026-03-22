@@ -51,7 +51,7 @@ Players use `/server mc1` … `/server mc5` in-game to switch from the lobby to 
 ### SSH access (both modes)
 
 Each container runs Debian Trixie and contains:
-- A Spigot Minecraft server with the script4kids plugin
+- A Spigot Minecraft server with the script4kids plugin (JavaScript engine powered by GraalVM CE JDK)
 - An SSH server with exactly two locked-down users:
 
 | SSH user | Tool | Permission |
@@ -167,7 +167,9 @@ keys/
 docker compose up -d
 ```
 
-The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, compiles the plugin). Every start after that is done in seconds.
+The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, pulls GraalVM CE JDK, compiles the plugin). Every start after that is done in seconds.
+
+> **Why GraalVM CE JDK?** The script4kids plugin runs student JavaScript via the GraalVM polyglot engine, which requires GraalVM's JDK — standard OpenJDK cannot initialize the JS engine. The container base is still Debian Trixie; GraalVM replaces only the JDK.
 
 What happens inside each container on boot:
 
