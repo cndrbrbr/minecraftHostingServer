@@ -86,6 +86,9 @@ chmod 664 \
 mkdir -p /server/logs /server/crash-reports
 chown root:mc-sftp /server/logs /server/crash-reports
 chmod 775 /server/logs /server/crash-reports
+find /server/logs /server/crash-reports -type f \
+    -exec chown root:mc-sftp {} \; \
+    -exec chmod 664 {} \; 2>/dev/null || true
 
 # ── watch_copy: push image config changes to volume at runtime
 /watch_copy.sh /server-base/server.properties /server/data/cfg/server.properties &
