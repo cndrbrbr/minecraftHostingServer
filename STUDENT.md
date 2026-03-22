@@ -111,17 +111,18 @@ After connecting you land directly in your server's data folder `/data/`:
 
 ---
 
-## Part 2 — PuTTY: start, stop and change version
+## Part 2 — PuTTY: start, stop, change version, and add players
 
 PuTTY lets you send commands to your server. The connection closes automatically after each command — you do not get a terminal or shell.
 
-You can send three commands:
+You can send four commands:
 
 | Command | What it does |
 |---------|-------------|
 | `stop` | Stops the Minecraft server |
 | `start` | Starts the Minecraft server again |
 | `version 1.20.4` | Switches to a different Spigot version (takes effect after stop + start) |
+| `adduser CoolPlayer99` | Adds a Minecraft player to your whitelist and makes them an operator |
 
 ### Install PuTTY
 
@@ -146,7 +147,7 @@ You only need to do this once.
 
 Save a separate session for each command so you can run them with two clicks.
 
-**For each of the three sessions, follow these steps — only the Session Name and Remote command differ:**
+**For each session, follow these steps — only the Session Name and Remote command differ:**
 
 1. Open **PuTTY**.
 2. In the left tree make sure **Session** is selected.
@@ -168,6 +169,7 @@ Save a separate session for each command so you can run them with two clicks.
 | `mc-stop` | `stop` |
 | `mc-start` | `start` |
 | `mc-version-1.20.4` | `version 1.20.4` *(change the number as needed)* |
+| `mc-adduser` | `adduser YourMinecraftName` *(change the name as needed)* |
 
 ### Stop the server
 
@@ -205,6 +207,25 @@ Save a separate session for each command so you can run them with two clicks.
 4. If this is the first time that version is used, the server takes several minutes to start while it compiles. Wait for the Minecraft server to become reachable before connecting.
 
 > To set a different version later, create a new PuTTY session with a different **Remote command** (e.g. `version 1.21.1`) and save it under a new name.
+
+### Add a player to your server
+
+Use this command to let a specific Minecraft player join your server and give them operator permissions.
+
+1. Open **PuTTY** and double-click **mc-adduser**.
+2. The terminal shows:
+   ```
+   ==> Looking up 'CoolPlayer99' in Mojang API...
+   ==> UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+   ==> 'CoolPlayer99' added to whitelist.
+   ==> 'CoolPlayer99' added to ops (level 4).
+   ==> Whitelist reloaded — 'CoolPlayer99' can connect immediately.
+   ==> Operator permissions take effect after the next server restart.
+   ==> Done. You may close this connection.
+   ```
+3. Close the window. The player can now connect to your server.
+
+> To add a different player, create a new PuTTY session with a different **Remote command** (e.g. `adduser AnotherPlayer`) and save it under a new name.
 
 ---
 

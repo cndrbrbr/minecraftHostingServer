@@ -57,7 +57,7 @@ Each container runs Debian Trixie and contains:
 | SSH user | Tool | Permission |
 |----------|------|------------|
 | `mc-sftp` | FileZilla | SFTP only, restricted to the server's data folder |
-| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, `version <x.x.x>`, or `restore <date\|latest>` — nothing else |
+| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, `version <x.x.x>`, `restore <date\|latest>`, or `adduser <minecraft-name>` — nothing else |
 
 Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
 
@@ -287,7 +287,7 @@ In BungeeCord mode, there are also:
 ./start-lobby.sh     # restart the lobby server
 ```
 
-### Student server control (start / stop / version / restore)
+### Student server control (start / stop / version / restore / adduser)
 
 Students control their own Minecraft process via SSH using their `ctrl_key`. The container and SSH stay up at all times — only the Java process inside is affected.
 
@@ -298,6 +298,7 @@ ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost start
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost version 1.20.4
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost restore latest
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost restore 2026-03-22
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost adduser CoolPlayer99
 ```
 
 Students do the same from their own machine using PuTTY (see `STUDENT.md`).
@@ -305,6 +306,8 @@ Students do the same from their own machine using PuTTY (see `STUDENT.md`).
 **How versioning works:** `version <x.x.x>` writes the requested version to the container volume. The change takes effect after the next `stop` + `start`. If that version has never been built before, BuildTools compiles it on first start (5–10 minutes). Subsequent starts with the same version are instant because the JAR is cached on the volume.
 
 **How restore works:** `restore <date|latest>` downloads backup zips from the configured `BACKUP_URL`, stops the server, extracts cfg/plugins/worlds, then waits. The student runs `start` to bring the server back up. See the [Backup and restore](#backup-and-restore) section for setup.
+
+**How adduser works:** `adduser <minecraft-username>` looks up the player's UUID from the Mojang API (or derives it for offline mode), then adds the player to both `whitelist.json` and `ops.json` (operator level 4). If the server is running, the whitelist is reloaded immediately so the player can connect without a restart. Op permissions take effect after the next server restart.
 
 ### Restart only the Minecraft process inside a container (admin shortcut)
 
@@ -602,7 +605,7 @@ The lobby server uses the same Spigot image as the student servers. It has no SS
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
-| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh`, `sudo /mc-restore.sh` — sudo for anything else is blocked |
+| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh`, `sudo /mc-restore.sh`, `sudo /mc-adduser.sh` — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
 | No forwarding | TCP, X11, and agent forwarding are disabled |
 
@@ -643,11 +646,12 @@ mchost/
     ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
     ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds Spigot → runs MC
     ├── sshd_config                 # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
-    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version/restore
+    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version/restore/adduser
     ├── mc-start.sh                 # removes .stopped marker → entrypoint loop launches the server
     ├── mc-stop.sh                  # creates .stopped marker + kills Java → server stays down
     ├── mc-version.sh               # writes requested version to /server/.version on the volume
     ├── mc-restore.sh               # fetches backup zips by date, extracts to volume
+    ├── mc-adduser.sh               # adds a Minecraft username to whitelist.json and ops.json
     ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume
     ├── server.properties           # default server config (copied to volume on first run)
     ├── spigot.yml                  # bungeecord: false by default (set via MC_BUNGEECORD env var)
