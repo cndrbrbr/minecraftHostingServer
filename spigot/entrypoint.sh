@@ -9,8 +9,10 @@ DEFAULT_SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
 if [ ! -f /server/ssh_host_ed25519_key ]; then
     ssh-keygen -t ed25519 -f /server/ssh_host_ed25519_key -N '' -q
     ssh-keygen -t rsa -b 4096 -f /server/ssh_host_rsa_key -N '' -q
-    chmod 600 /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
 fi
+# Always enforce correct ownership/permissions — sshd refuses to start otherwise
+chown root:root /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
+chmod 600 /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
 
 # ── Authorized keys from environment ─────────────────────────
 # Written every start so key rotations take effect immediately
