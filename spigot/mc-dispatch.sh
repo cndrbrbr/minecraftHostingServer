@@ -23,11 +23,16 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
         DATE="${SSH_ORIGINAL_COMMAND#restore }"
         exec sudo /mc-restore.sh "$DATE"
         ;;
+    adduser\ *)
+        USERNAME="${SSH_ORIGINAL_COMMAND#adduser }"
+        exec sudo /mc-adduser.sh "$USERNAME"
+        ;;
     *)
         echo "Usage: ssh mc-ctrl@<host> -p <port> start"
         echo "       ssh mc-ctrl@<host> -p <port> stop"
         echo "       ssh mc-ctrl@<host> -p <port> version <version>"
         echo "       ssh mc-ctrl@<host> -p <port> restore <YYYY-MM-DD|latest>"
+        echo "       ssh mc-ctrl@<host> -p <port> adduser <minecraft-username>"
         exit 1
         ;;
 esac
