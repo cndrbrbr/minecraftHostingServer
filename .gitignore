@@ -10,3 +10,6 @@ keys/mc*/ctrl_key
 start-mc*.sh
 start-lobby.sh
 start-bungee.sh
+
+# Backup archives — never commit these
+backups/

@@ -5,6 +5,8 @@
 # Student usage from PuTTY / ssh client:
 #   ssh mc-ctrl@<host> -p <port> start
 #   ssh mc-ctrl@<host> -p <port> stop
+#   ssh mc-ctrl@<host> -p <port> version <version>
+#   ssh mc-ctrl@<host> -p <port> restore <YYYY-MM-DD|latest>
 
 case "${SSH_ORIGINAL_COMMAND:-}" in
     start)
@@ -17,11 +19,15 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
         VERSION="${SSH_ORIGINAL_COMMAND#version }"
         exec sudo /mc-version.sh "$VERSION"
         ;;
+    restore\ *)
+        DATE="${SSH_ORIGINAL_COMMAND#restore }"
+        exec sudo /mc-restore.sh "$DATE"
+        ;;
     *)
         echo "Usage: ssh mc-ctrl@<host> -p <port> start"
         echo "       ssh mc-ctrl@<host> -p <port> stop"
         echo "       ssh mc-ctrl@<host> -p <port> version <version>"
-        echo "Example: ssh mc-ctrl@<host> -p <port> version 1.20.4"
+        echo "       ssh mc-ctrl@<host> -p <port> restore <YYYY-MM-DD|latest>"
         exit 1
         ;;
 esac

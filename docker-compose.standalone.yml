@@ -14,12 +14,13 @@ services:
       - "25565:25565"   # Minecraft — student 1
       - "2221:22"       # SSH (FileZilla + PuTTY) — student 1
     environment:
+      MC_NAME: mc1
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      BACKUP_URL: ""
       SFTP_PUBKEY: "${MC1_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC1_CTRL_PUBKEY}"
     volumes:
@@ -35,12 +36,13 @@ services:
       - "25566:25565"   # Minecraft — student 2
       - "2222:22"       # SSH — student 2
     environment:
+      MC_NAME: mc2
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      BACKUP_URL: ""
       SFTP_PUBKEY: "${MC2_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC2_CTRL_PUBKEY}"
     volumes:
@@ -56,12 +58,13 @@ services:
       - "25567:25565"   # Minecraft — student 3
       - "2223:22"       # SSH — student 3
     environment:
+      MC_NAME: mc3
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      BACKUP_URL: ""
       SFTP_PUBKEY: "${MC3_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC3_CTRL_PUBKEY}"
     volumes:
@@ -77,12 +80,13 @@ services:
       - "25568:25565"   # Minecraft — student 4
       - "2224:22"       # SSH — student 4
     environment:
+      MC_NAME: mc4
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      BACKUP_URL: ""
       SFTP_PUBKEY: "${MC4_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC4_CTRL_PUBKEY}"
     volumes:
@@ -98,12 +102,13 @@ services:
       - "25569:25565"   # Minecraft — student 5
       - "2225:22"       # SSH — student 5
     environment:
+      MC_NAME: mc5
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      BACKUP_URL: ""
       SFTP_PUBKEY: "${MC5_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC5_CTRL_PUBKEY}"
     volumes:

@@ -10,7 +10,7 @@
 #
 # Two SSH users per container:
 #   mc-sftp  — FileZilla SFTP access, chrooted to /server
-#   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop / version)
+#   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop / version / restore)
 # ============================================================
 
 # ── Stage 1: Build plugin ───────────────────────────────────
@@ -27,7 +27,7 @@ FROM debian:trixie-slim
 
 RUN apt-get update && apt-get install -y \
     openjdk-21-jdk git curl inotify-tools \
-    openssh-server sudo \
+    openssh-server sudo zip unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-download BuildTools so the container doesn't need internet at startup
@@ -49,7 +49,7 @@ RUN mkdir -p /home/mc-sftp/.ssh /home/mc-ctrl/.ssh && \
     chmod 700 /home/mc-sftp/.ssh /home/mc-ctrl/.ssh
 
 # mc-ctrl may only sudo the control scripts (no TTY required)
-RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh, /mc-version.sh\n' \
+RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh, /mc-version.sh, /mc-restore.sh\n' \
     > /etc/sudoers.d/mc-ctrl && chmod 440 /etc/sudoers.d/mc-ctrl
 
 WORKDIR /server-base
@@ -67,11 +67,12 @@ COPY mc-dispatch.sh  /mc-dispatch.sh
 COPY mc-start.sh     /mc-start.sh
 COPY mc-stop.sh      /mc-stop.sh
 COPY mc-version.sh   /mc-version.sh
+COPY mc-restore.sh   /mc-restore.sh
 
 # SSH server config
 COPY sshd_config /etc/ssh/sshd_config
 
-RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh /mc-version.sh
+RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh /mc-version.sh /mc-restore.sh
 
 WORKDIR /server
 
