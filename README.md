@@ -57,7 +57,7 @@ Each container runs Debian Trixie and contains:
 | SSH user | Tool | Permission |
 |----------|------|------------|
 | `mc-sftp` | FileZilla | SFTP only, restricted to the server's data folder |
-| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, or `version <x.x.x>` — nothing else |
+| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, `version <x.x.x>`, or `restore <date\|latest>` — nothing else |
 
 Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
 
@@ -287,7 +287,7 @@ In BungeeCord mode, there are also:
 ./start-lobby.sh     # restart the lobby server
 ```
 
-### Student server control (start / stop / version)
+### Student server control (start / stop / version / restore)
 
 Students control their own Minecraft process via SSH using their `ctrl_key`. The container and SSH stay up at all times — only the Java process inside is affected.
 
@@ -296,11 +296,15 @@ Students control their own Minecraft process via SSH using their `ctrl_key`. The
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost stop
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost start
 ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost version 1.20.4
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost restore latest
+ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost restore 2026-03-22
 ```
 
 Students do the same from their own machine using PuTTY (see `STUDENT.md`).
 
 **How versioning works:** `version <x.x.x>` writes the requested version to the container volume. The change takes effect after the next `stop` + `start`. If that version has never been built before, BuildTools compiles it on first start (5–10 minutes). Subsequent starts with the same version are instant because the JAR is cached on the volume.
+
+**How restore works:** `restore <date|latest>` downloads backup zips from the configured `BACKUP_URL`, stops the server, extracts cfg/plugins/worlds, then waits. The student runs `start` to bring the server back up. See the [Backup and restore](#backup-and-restore) section for setup.
 
 ### Restart only the Minecraft process inside a container (admin shortcut)
 
@@ -453,11 +457,14 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | Variable | Set by | Description |
 |----------|--------|-------------|
 | `MC_PORT` | fixed `25565` | Internal Minecraft port (do not change) |
+| `MC_NAME` | `docker-compose.yml` | Container name used to locate backups (`mc1` … `mc5`, `lobby`) |
 | `MC_MEM_MIN` | `configure-memory.sh` | JVM minimum heap |
 | `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
+| `MC_BUNGEECORD` | `docker-compose.yml` | `true` to enable BungeeCord IP forwarding in spigot.yml |
 | `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build (can be overridden per-server by the student via `version` command) |
 | `FORCE_BUILD` | `docker-compose.yml` | `true` to force Spigot rebuild on next start |
+| `BACKUP_URL` | `docker-compose.yml` | Base URL of the backup HTTP server — required for the `restore` command |
 | `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
 | `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
 
@@ -471,6 +478,101 @@ To change the default for all fresh servers, edit `spigot/server.properties` in 
 
 ---
 
+## Backup and restore
+
+The backup system lets you snapshot each server's data (config, plugins, worlds) as dated zip files. Those zips are served over HTTP so any server can fetch and restore them by date or with the keyword `latest`.
+
+### Creating backups (source server)
+
+Run `backup.sh` on the host from the repository directory:
+
+```bash
+./backup.sh              # lobby (if running) + mc1–mc5
+./backup.sh 1            # mc1 only
+./backup.sh lobby 1 2    # lobby + mc1 + mc2
+```
+
+Backups are written to `./backups/<name>/`:
+
+```
+backups/
+├── mc1/
+│   ├── cfg-2026-03-22.zip
+│   ├── plugins-2026-03-22.zip
+│   ├── worlds-2026-03-22.zip
+│   └── latest.txt          ← contains "2026-03-22"
+├── mc2/  ...
+└── lobby/  ...
+```
+
+> The `backups/` directory is excluded from git.
+
+### Serving backups over HTTP
+
+The restore command inside each container fetches zips via HTTP. Start a simple file server on the source host:
+
+```bash
+docker run -d --name mc-backup-server --restart unless-stopped \
+  -p 8080:80 \
+  -v $(pwd)/backups:/usr/share/nginx/html:ro \
+  nginx:alpine
+```
+
+The backups are now reachable at `http://<source-host>:8080`.
+
+### Configuring the destination server
+
+In `docker-compose.yml` on the destination server, set `BACKUP_URL` and confirm `MC_NAME` for each service:
+
+```yaml
+environment:
+  MC_NAME: mc1
+  BACKUP_URL: "http://<source-host>:8080"
+```
+
+Apply the change without rebuilding:
+
+```bash
+docker compose up -d --no-deps mc1
+```
+
+### Restoring a backup (student or admin)
+
+Via PuTTY (student):
+```
+restore latest
+restore 2026-03-22
+```
+
+Via SSH (admin):
+```bash
+ssh -i keys/mc1/ctrl_key -p 2221 mc-ctrl@localhost restore latest
+ssh -i keys/mc1/ctrl_key -p 2221 mc-ctrl@localhost restore 2026-03-22
+```
+
+The restore process:
+1. Stops the Minecraft server
+2. Downloads `cfg`, `plugins`, and `worlds` zips from the backup server
+3. Extracts them, replacing the current data
+4. Waits — the student then runs `start` to bring the server back up
+
+> **Note:** `restore` replaces all three data directories. Any changes made after the backup date will be lost.
+
+### Automating backups with cron
+
+To back up all servers automatically every night at 02:00:
+
+```bash
+crontab -e
+```
+
+Add:
+```
+0 2 * * * cd /path/to/mchost && ./backup.sh >> /var/log/mc-backup.log 2>&1
+```
+
+---
+
 ## BungeeCord internals
 
 This section explains the technical choices for the BungeeCord setup.
@@ -480,7 +582,7 @@ This section explains the technical choices for the BungeeCord setup.
 - BungeeCord (`online_mode: true`) handles Mojang authentication centrally.
 - Backend servers (lobby, mc1–mc5) run with `online-mode=false` in `server.properties` — they trust the UUID forwarded by BungeeCord.
 - `ip_forward: true` is set in BungeeCord's `config.yml` so real Mojang UUIDs are passed through. This means whitelists and permissions on backend servers work correctly.
-- `bungeecord: true` is set in `spigot.yml` on all backend servers to accept the forwarded connection data.
+- `bungeecord: true` is set in `spigot.yml` on all backend servers to accept the forwarded connection data. This is applied automatically at container start via the `MC_BUNGEECORD=true` env var in `docker-compose.bungeecord.yml`.
 
 ### Network isolation
 
@@ -500,7 +602,7 @@ The lobby server uses the same Spigot image as the student servers. It has no SS
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
-| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh` — sudo for anything else is blocked |
+| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh`, `sudo /mc-restore.sh` — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
 | No forwarding | TCP, X11, and agent forwarding are disabled |
 
@@ -517,6 +619,7 @@ mchost/
 ├── docker-compose.bungeecord.yml   # template: bungee + lobby + 5 servers, single port
 ├── configure-memory.sh             # detect RAM → write docker-compose.yml → generate start scripts
 ├── setup-keys.sh                   # generate ed25519 key pairs + write .env
+├── backup.sh                       # create dated backups of server data volumes
 ├── start-mc1.sh                    # generated by configure-memory.sh ┐
 ├── start-mc2.sh                    #                                  │
 ├── start-mc3.sh                    #                                  ├ start/restart one server
@@ -524,9 +627,12 @@ mchost/
 ├── start-mc5.sh                    #                                  ┘
 ├── start-bungee.sh                 # generated in bungeecord mode — restart BungeeCord proxy
 ├── start-lobby.sh                  # generated in bungeecord mode — restart lobby server
+├── backups/                        # backup archives (excluded from git)
+│   ├── mc1/  cfg-DATE.zip, plugins-DATE.zip, worlds-DATE.zip, latest.txt
+│   └── ...
 ├── .env                            # public SSH keys — written by setup-keys.sh
 ├── .env.example                    # empty template
-├── .gitignore                      # excludes private keys, .env, start-mc*.sh
+├── .gitignore                      # excludes private keys, .env, start-mc*.sh, backups/
 ├── LICENSE                         # Apache 2.0
 ├── STUDENT.md                      # printable student guide (fill in IP + port before sharing)
 ├── bungee/
@@ -537,13 +643,14 @@ mchost/
     ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
     ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds Spigot → runs MC
     ├── sshd_config                 # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
-    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version
+    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version/restore
     ├── mc-start.sh                 # removes .stopped marker → entrypoint loop launches the server
     ├── mc-stop.sh                  # creates .stopped marker + kills Java → server stays down
     ├── mc-version.sh               # writes requested version to /server/.version on the volume
+    ├── mc-restore.sh               # fetches backup zips by date, extracts to volume
     ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume
     ├── server.properties           # default server config (copied to volume on first run)
-    ├── spigot.yml                  # bungeecord: true (required for BungeeCord IP forwarding)
+    ├── spigot.yml                  # bungeecord: false by default (set via MC_BUNGEECORD env var)
     ├── eula.txt                    # eula=true
     └── whitelist.json              # empty by default; students can edit via FileZilla
 ```
