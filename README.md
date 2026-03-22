@@ -309,6 +309,17 @@ Students do the same from their own machine using PuTTY (see `STUDENT.md`).
 
 **How adduser works:** `adduser <minecraft-username>` looks up the player's UUID from the Mojang API (or derives it for offline mode), then adds the player to both `whitelist.json` and `ops.json` (operator level 4). If the server is running, the whitelist is reloaded immediately so the player can connect without a restart. Op permissions take effect after the next server restart.
 
+### Broadcast a message to all players
+
+Use `announce.sh` to warn players across all running servers before doing maintenance:
+
+```bash
+./announce.sh "Server maintenance in 5 minutes — please save your work!"
+./announce.sh "I am restarting mc3 now."
+```
+
+The message appears in-game as `[ADMIN] <your text>`. Containers that are not running are automatically skipped.
+
 ### Restart only the Minecraft process inside a container (admin shortcut)
 
 ```bash
@@ -623,6 +634,7 @@ mchost/
 ├── docker-compose.bungeecord.yml   # template: bungee + lobby + 5 servers, single port
 ├── configure-memory.sh             # detect RAM → write docker-compose.yml → generate start scripts
 ├── setup-keys.sh                   # generate ed25519 key pairs + write .env
+├── announce.sh                     # broadcast a message to all players on all running servers
 ├── backup.sh                       # create dated backups of server data volumes
 ├── backup-server/
 │   └── docker-compose.yml          # nginx:alpine that serves backup zips over HTTP (port 8080)
