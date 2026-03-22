@@ -9,5 +9,7 @@ if ! [ -f /server/.stopped ]; then
 fi
 
 rm -f /server/.stopped
-echo "==> Starting Minecraft server — it will be available in a few seconds."
+echo "==> Starting Minecraft server..."
+echo "==> Note: if you changed the version, the first start may take"
+echo "==>       several minutes while the new version is being compiled."
 echo "==> You may close this connection."
