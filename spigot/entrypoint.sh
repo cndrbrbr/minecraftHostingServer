@@ -1,12 +1,7 @@
 #!/bin/bash
 set -e
 
-SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
-# Allow student to override version via /server/.version (set by mc-version.sh)
-if [ -f /server/.version ]; then
-    SPIGOT_VERSION=$(cat /server/.version | tr -d '[:space:]')
-fi
-SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
+DEFAULT_SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
 
 # ── SSH host keys ────────────────────────────────────────────
 # Stored on the volume so the fingerprint is stable across restarts
@@ -36,15 +31,6 @@ mkdir -p /run/sshd
 /usr/sbin/sshd
 echo "==> SSH server started"
 
-# ── Build Spigot if not on volume ────────────────────────────
-if [ ! -f "$SPIGOT_JAR" ] || [ "${FORCE_BUILD:-false}" = "true" ]; then
-    echo "==> Building Spigot ${SPIGOT_VERSION} via BuildTools (this takes a few minutes)..."
-    BUILD_DIR=$(mktemp -d)
-    cd "$BUILD_DIR"
-    java -jar /buildtools/BuildTools.jar --rev "${SPIGOT_VERSION}" --compile SPIGOT
-    cp "${BUILD_DIR}/spigot-${SPIGOT_VERSION}.jar" "$SPIGOT_JAR"
-    rm -rf "$BUILD_DIR"
-fi
 
 # ── Volume directory structure ────────────────────────────────
 mkdir -p /server/data/cfg /server/data/plugins /server/data/worlds
@@ -77,7 +63,7 @@ chmod -R u+rwX,go+rX /server/data
 # A SIGTERM from mc-stop.sh causes a non-zero exit → paused (not restarted)
 # when /server/.stopped is present. mc-start.sh removes .stopped to resume.
 cd /server
-echo "==> Starting Minecraft server ${SPIGOT_VERSION}..."
+echo "==> Minecraft server loop starting..."
 
 while true; do
     # Wait while the student has manually stopped the server
@@ -85,6 +71,26 @@ while true; do
         sleep 2
     done
 
+    # Re-read version on every start so version changes take effect
+    # without restarting the container
+    SPIGOT_VERSION=${DEFAULT_SPIGOT_VERSION}
+    if [ -f /server/.version ]; then
+        SPIGOT_VERSION=$(cat /server/.version | tr -d '[:space:]')
+    fi
+    SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
+
+    # Build Spigot if this version is not cached on the volume yet
+    if [ ! -f "$SPIGOT_JAR" ] || [ "${FORCE_BUILD:-false}" = "true" ]; then
+        echo "==> Building Spigot ${SPIGOT_VERSION} via BuildTools (this takes a few minutes)..."
+        BUILD_DIR=$(mktemp -d)
+        cd "$BUILD_DIR"
+        java -jar /buildtools/BuildTools.jar --rev "${SPIGOT_VERSION}" --compile SPIGOT
+        cp "${BUILD_DIR}/spigot-${SPIGOT_VERSION}.jar" "$SPIGOT_JAR"
+        rm -rf "$BUILD_DIR"
+        cd /server
+    fi
+
+    echo "==> Starting Minecraft server ${SPIGOT_VERSION}..."
     runuser -u mc-sftp -- java \
         -Xms${MC_MEM_MIN:-512M} \
         -Xmx${MC_MEM_MAX:-1G} \
