@@ -670,14 +670,14 @@ MONITORING_IP="<IP_DES_MINECRAFTDASH_SERVERS>"   # z. B. 10.0.0.5
 # ── Prometheus Exporter (container-intern: 9940) ─────────────
 # Nur der Monitoring-Server darf die Metriken abrufen.
 # Gilt für alle mc1–mc5 gleichzeitig, da sie alle intern auf 9940 lauschen.
-iptables -I DOCKER-USER -p tcp --dport 9940 -s "$MONITORING_IP" -j ACCEPT
-iptables -I DOCKER-USER -p tcp --dport 9940 -j DROP
+iptables -A DOCKER-USER -p tcp --dport 9940 -s "$MONITORING_IP" -j ACCEPT
+iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
 
 # ── Minecraft (container-intern: 25565) ──────────────────────
 # Öffentlich erreichbar — keine Einschränkung nötig.
 # Optional: nur bestimmtes Netz erlauben:
-# iptables -I DOCKER-USER -p tcp --dport 25565 -s <WORKSHOP_NETZ>/24 -j ACCEPT
-# iptables -I DOCKER-USER -p tcp --dport 25565 -j DROP
+# iptables -A DOCKER-USER -p tcp --dport 25565 -s <WORKSHOP_NETZ>/24 -j ACCEPT
+# iptables -A DOCKER-USER -p tcp --dport 25565 -j DROP
 ```
 
 > **Regeln dauerhaft speichern** (Debian/Ubuntu):
