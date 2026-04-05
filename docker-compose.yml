@@ -13,9 +13,10 @@ services:
     ports:
       - "25565:25565"   # Minecraft — student 1
       - "2221:22"       # SSH (FileZilla + PuTTY) — student 1
+      - "9941:9940"     # Prometheus exporter — student 1
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
@@ -34,9 +35,10 @@ services:
     ports:
       - "25566:25565"   # Minecraft — student 2
       - "2222:22"       # SSH — student 2
+      - "9942:9940"     # Prometheus exporter — student 2
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
@@ -55,9 +57,10 @@ services:
     ports:
       - "25567:25565"   # Minecraft — student 3
       - "2223:22"       # SSH — student 3
+      - "9943:9940"     # Prometheus exporter — student 3
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
@@ -76,9 +79,10 @@ services:
     ports:
       - "25568:25565"   # Minecraft — student 4
       - "2224:22"       # SSH — student 4
+      - "9944:9940"     # Prometheus exporter — student 4
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
@@ -97,9 +101,10 @@ services:
     ports:
       - "25569:25565"   # Minecraft — student 5
       - "2225:22"       # SSH — student 5
+      - "9945:9940"     # Prometheus exporter — student 5
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"

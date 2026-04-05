@@ -66,8 +66,10 @@ RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc
 
 WORKDIR /server-base
 
-# Plugin JAR
+# Plugin JARs
 COPY --from=plugin-builder /build/target/jsmn-1.0-SNAPSHOT.jar plugins/
+COPY minecraft-prometheus-exporter.jar plugins/
+COPY prometheus-exporter-config.yml plugins/PrometheusExporter/config.yml
 
 # Server config
 COPY eula.txt server.properties whitelist.json spigot.yml ./

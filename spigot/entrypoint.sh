@@ -40,6 +40,11 @@ mkdir -p /server/data/cfg /server/data/plugins /server/data/worlds
 # ── Plugin: always update so image rebuilds take effect ──────
 cp /server-base/plugins/*.jar /server/data/plugins/
 
+# ── PrometheusExporter config: copy on first run only ────────
+mkdir -p /server/data/plugins/PrometheusExporter
+[ -f /server/data/plugins/PrometheusExporter/config.yml ] || \
+    cp /server-base/plugins/PrometheusExporter/config.yml /server/data/plugins/PrometheusExporter/config.yml
+
 # ── Config: copy to volume on first run only ─────────────────
 [ -f /server/eula.txt ]                       || echo "eula=true" > /server/eula.txt
 [ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
@@ -53,6 +58,15 @@ if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
     sed -i 's/bungeecord: false/bungeecord: true/' /server/data/cfg/spigot.yml
 else
     sed -i 's/bungeecord: true/bungeecord: false/' /server/data/cfg/spigot.yml
+fi
+
+# server.properties: online-mode abhängig von BungeeCord-Modus
+# Mit BungeeCord: online-mode=false (BungeeCord übernimmt die Authentifizierung)
+# Ohne BungeeCord: online-mode=true
+if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
+    sed -i 's/online-mode=true/online-mode=false/' /server/data/cfg/server.properties
+else
+    sed -i 's/online-mode=false/online-mode=true/' /server/data/cfg/server.properties
 fi
 
 # ── Permissions for ChrootDirectory ──────────────────────────
