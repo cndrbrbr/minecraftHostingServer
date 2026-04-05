@@ -611,6 +611,51 @@ The lobby server uses the same Spigot image as the student servers. It has no SS
 
 ---
 
+## Firewall (iptables)
+
+Docker-published Ports umgehen die `INPUT`-Chain. Regeln für Docker-Container gehören in die `DOCKER-USER`-Chain — sie greifen nach dem DNAT, bevor das Paket den Container erreicht.
+
+```bash
+# Platzhalter ersetzen:
+MONITORING_IP="<IP_DES_MINECRAFTDASH_SERVERS>"   # z. B. 10.0.0.5
+ADMIN_IP="<IP_DES_ADMINS>"                        # z. B. 1.2.3.4
+
+# ── Prometheus Exporter (container-intern: 9940) ─────────────
+# Nur der Monitoring-Server darf die Metriken abrufen.
+# Gilt für alle mc1–mc5 gleichzeitig, da sie alle intern auf 9940 lauschen.
+iptables -I DOCKER-USER -p tcp --dport 9940 -s "$MONITORING_IP" -j ACCEPT
+iptables -I DOCKER-USER -p tcp --dport 9940 -j DROP
+
+# ── SSH (container-intern: 22, Host-Ports 2221–2225) ─────────
+# Nur der Admin-Rechner darf per SSH zugreifen.
+iptables -I DOCKER-USER -p tcp --dport 22 -s "$ADMIN_IP" -j ACCEPT
+iptables -I DOCKER-USER -p tcp --dport 22 -j DROP
+
+# ── Minecraft (container-intern: 25565) ──────────────────────
+# Öffentlich erreichbar — keine Einschränkung nötig.
+# Optional: nur bestimmtes Netz erlauben:
+# iptables -I DOCKER-USER -p tcp --dport 25565 -s <WORKSHOP_NETZ>/24 -j ACCEPT
+# iptables -I DOCKER-USER -p tcp --dport 25565 -j DROP
+```
+
+> **Regeln dauerhaft speichern** (Debian/Ubuntu):
+> ```bash
+> apt install iptables-persistent
+> netfilter-persistent save
+> ```
+
+> **Regeln prüfen:**
+> ```bash
+> iptables -L DOCKER-USER -n --line-numbers
+> ```
+
+> **Einzelne Regel entfernen** (Zeilennummer aus obigem Befehl):
+> ```bash
+> iptables -D DOCKER-USER <nummer>
+> ```
+
+---
+
 ## Security model
 
 | Layer | What it does |
