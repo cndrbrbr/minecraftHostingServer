@@ -618,18 +618,12 @@ Docker-published Ports umgehen die `INPUT`-Chain. Regeln für Docker-Container g
 ```bash
 # Platzhalter ersetzen:
 MONITORING_IP="<IP_DES_MINECRAFTDASH_SERVERS>"   # z. B. 10.0.0.5
-ADMIN_IP="<IP_DES_ADMINS>"                        # z. B. 1.2.3.4
 
 # ── Prometheus Exporter (container-intern: 9940) ─────────────
 # Nur der Monitoring-Server darf die Metriken abrufen.
 # Gilt für alle mc1–mc5 gleichzeitig, da sie alle intern auf 9940 lauschen.
 iptables -I DOCKER-USER -p tcp --dport 9940 -s "$MONITORING_IP" -j ACCEPT
 iptables -I DOCKER-USER -p tcp --dport 9940 -j DROP
-
-# ── SSH (container-intern: 22, Host-Ports 2221–2225) ─────────
-# Nur der Admin-Rechner darf per SSH zugreifen.
-iptables -I DOCKER-USER -p tcp --dport 22 -s "$ADMIN_IP" -j ACCEPT
-iptables -I DOCKER-USER -p tcp --dport 22 -j DROP
 
 # ── Minecraft (container-intern: 25565) ──────────────────────
 # Öffentlich erreichbar — keine Einschränkung nötig.
