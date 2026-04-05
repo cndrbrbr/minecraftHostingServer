@@ -1,9 +1,52 @@
 services:
 
-  # ── Student servers — standalone mode ───────────────────────
-  # Each server is directly reachable by Minecraft clients.
-  # No BungeeCord proxy, no lobby.
+  # ── BungeeCord proxy ──────────────────────────────────────────
+  # Single public entry point for all Minecraft clients.
+  # Handles Mojang auth centrally and routes players to servers.
+  bungee:
+    build: ./bungee
+    container_name: bungee
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    ports:
+      - "25565:25565"   # only public Minecraft port
+    environment:
+      BUNGEE_MEM_MAX: "512M"
+    volumes:
+      - bungee_data:/bungee
+    networks:
+      - workshop
 
+  # ── Lobby server ──────────────────────────────────────────────
+  # Players land here first. No host MC port — only reachable
+  # via BungeeCord. No SSH access needed (admin-managed only).
+  lobby:
+    build: ./spigot
+    container_name: lobby
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    ports:
+      - "9940:9940"     # Prometheus exporter — lobby
+    environment:
+      MC_LEVELNAME: world
+      MC_MAXPLAYERS: "30"
+      MC_PORT: "25565"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
+      FORCE_BUILD: "false"
+      SFTP_PUBKEY: ""
+      CTRL_PUBKEY: ""
+    volumes:
+      - lobby_data:/server
+    networks:
+      - workshop
+
+  # ── Student servers ───────────────────────────────────────────
+  # Reachable via BungeeCord only. SSH for file access (SFTP) and
+  # control (PuTTY). Prometheus exporter on host ports 9941–9945.
   mc1:
     build: ./spigot
     container_name: mc1
@@ -11,20 +54,22 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "25565:25565"   # Minecraft — student 1
       - "2221:22"       # SSH (FileZilla + PuTTY) — student 1
       - "9941:9940"     # Prometheus exporter — student 1
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "20"
+      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
       FORCE_BUILD: "false"
       SFTP_PUBKEY: "${MC1_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC1_CTRL_PUBKEY}"
     volumes:
       - mc1_data:/server
+    networks:
+      - workshop
 
   mc2:
     build: ./spigot
@@ -33,20 +78,22 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "25566:25565"   # Minecraft — student 2
       - "2222:22"       # SSH — student 2
       - "9942:9940"     # Prometheus exporter — student 2
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "20"
+      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
       FORCE_BUILD: "false"
       SFTP_PUBKEY: "${MC2_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC2_CTRL_PUBKEY}"
     volumes:
       - mc2_data:/server
+    networks:
+      - workshop
 
   mc3:
     build: ./spigot
@@ -55,20 +102,22 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "25567:25565"   # Minecraft — student 3
       - "2223:22"       # SSH — student 3
       - "9943:9940"     # Prometheus exporter — student 3
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "20"
+      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
       FORCE_BUILD: "false"
       SFTP_PUBKEY: "${MC3_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC3_CTRL_PUBKEY}"
     volumes:
       - mc3_data:/server
+    networks:
+      - workshop
 
   mc4:
     build: ./spigot
@@ -77,20 +126,22 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "25568:25565"   # Minecraft — student 4
       - "2224:22"       # SSH — student 4
       - "9944:9940"     # Prometheus exporter — student 4
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "20"
+      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
       FORCE_BUILD: "false"
       SFTP_PUBKEY: "${MC4_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC4_CTRL_PUBKEY}"
     volumes:
       - mc4_data:/server
+    networks:
+      - workshop
 
   mc5:
     build: ./spigot
@@ -99,24 +150,32 @@ services:
     stdin_open: true
     tty: true
     ports:
-      - "25569:25565"   # Minecraft — student 5
       - "2225:22"       # SSH — student 5
       - "9945:9940"     # Prometheus exporter — student 5
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "20"
+      MC_MAXPLAYERS: "5"
       MC_PORT: "25565"
-      MC_MEM_MIN: "512M"
-      MC_MEM_MAX: "1G"
+      MC_BUNGEECORD: "true"
+      MC_MEM_MIN: "1G"
+      MC_MEM_MAX: "2G"
       FORCE_BUILD: "false"
       SFTP_PUBKEY: "${MC5_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC5_CTRL_PUBKEY}"
     volumes:
       - mc5_data:/server
+    networks:
+      - workshop
 
 volumes:
+  bungee_data:
+  lobby_data:
   mc1_data:
   mc2_data:
   mc3_data:
   mc4_data:
   mc5_data:
+
+networks:
+  workshop:
+    driver: bridge
