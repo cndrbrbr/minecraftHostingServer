@@ -59,7 +59,7 @@ services:
       - "9941:9940"     # Prometheus exporter — student 1
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_BUNGEECORD: "true"
       MC_MEM_MIN: "512M"
@@ -83,7 +83,7 @@ services:
       - "9942:9940"     # Prometheus exporter — student 2
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_BUNGEECORD: "true"
       MC_MEM_MIN: "512M"
@@ -107,7 +107,7 @@ services:
       - "9943:9940"     # Prometheus exporter — student 3
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_BUNGEECORD: "true"
       MC_MEM_MIN: "512M"
@@ -131,7 +131,7 @@ services:
       - "9944:9940"     # Prometheus exporter — student 4
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_BUNGEECORD: "true"
       MC_MEM_MIN: "512M"
@@ -155,7 +155,7 @@ services:
       - "9945:9940"     # Prometheus exporter — student 5
     environment:
       MC_LEVELNAME: world
-      MC_MAXPLAYERS: "5"
+      MC_MAXPLAYERS: "20"
       MC_PORT: "25565"
       MC_BUNGEECORD: "true"
       MC_MEM_MIN: "512M"
