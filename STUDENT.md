@@ -97,9 +97,10 @@ the server entirely.
 > your teacher to mark your server as an exception first (`MC_SERVER_TYPE:
 > "custom"`). You'll then find a placeholder `start.sh` and folders like
 > `mods/`, `config/`, `libraries/`, `world/` already in your root — upload
-> your server into those and edit `start.sh` to launch it. In this mode the
-> `version` and `restore` PuTTY commands are not available — you manage your
-> own files and version over SFTP.
+> your server into those and edit `start.sh` to launch it. In this mode only
+> `start` and `stop` work from PuTTY — `version`, `restore`, and `adduser`
+> are not available, so you manage your own files, version, backups, and
+> whitelist directly over SFTP.
 
 ### Upload a plugin file
 

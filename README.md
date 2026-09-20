@@ -170,12 +170,10 @@ docker compose exec mc3 chown mc-sftp:mc-sftp /server/<name>
 
 **What's different for a custom-type student (the marked exception):**
 
-- `version` and `restore` refuse to run — both assume the managed Spigot
-  file layout. The student manages their own files and backups directly
-  over SFTP.
-- `stop` / `start` / `adduser` keep working (they only touch the process and
-  `whitelist.json`/`ops.json`, whose location and format is the same for
-  vanilla-family servers including Forge).
+- Only `start` and `stop` are available. `version`, `restore`, and `adduser`
+  all refuse to run — they assume the managed Spigot file layout, which
+  custom-type students don't have. The student manages their own files,
+  version, backups, and whitelist/ops directly over SFTP.
 - `./backup.sh` skips them automatically (no `data/` folder to zip) and says
   so.
 - No script4kids plugin, no Prometheus exporter, no automatic EULA/whitelist

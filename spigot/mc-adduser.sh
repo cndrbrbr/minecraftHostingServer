@@ -7,6 +7,13 @@
 
 USERNAME="$1"
 
+if [ "$(cat /server/.servertype 2>/dev/null)" = "custom" ]; then
+    echo "ERROR: this server is running custom software (MC_SERVER_TYPE=custom)."
+    echo "       Only 'start' and 'stop' are available here — manage your"
+    echo "       own whitelist/ops files directly via SFTP."
+    exit 1
+fi
+
 if [ -z "$USERNAME" ]; then
     echo "Usage: ssh mc-ctrl@<host> -p <port> adduser <minecraft-username>"
     exit 1
