@@ -182,8 +182,28 @@ while true; do
             echo "==> Building Spigot ${VERSION} via BuildTools (this takes a few minutes)..."
             BUILD_DIR=$(mktemp -d)
             cd "$BUILD_DIR"
-            java -jar /buildtools/BuildTools.jar --rev "${VERSION}" --compile SPIGOT
-            cp "${BUILD_DIR}/spigot-${VERSION}.jar" "$SERVER_JAR"
+            if ! java -jar /buildtools/BuildTools.jar --rev "${VERSION}" --compile SPIGOT; then
+                echo "==> ERROR: BuildTools failed for version ${VERSION}. Set a valid"
+                echo "==> version with 'version <x.x.x>' and run 'start' again. Waiting..."
+                cd /server
+                rm -rf "$BUILD_DIR"
+                touch /server/.stopped
+                continue
+            fi
+            # BuildTools names the jar after the version it actually resolved
+            # to (e.g. requesting "26.1" produces spigot-26.1.2.jar), which
+            # doesn't always match what was requested — find whatever it
+            # produced instead of assuming the exact filename.
+            BUILT_JAR=$(ls "${BUILD_DIR}"/spigot-*.jar 2>/dev/null | head -n1)
+            if [ -z "$BUILT_JAR" ]; then
+                echo "==> ERROR: BuildTools did not produce a jar for version ${VERSION}."
+                echo "==> Set a valid version with 'version <x.x.x>' and run 'start' again. Waiting..."
+                cd /server
+                rm -rf "$BUILD_DIR"
+                touch /server/.stopped
+                continue
+            fi
+            cp "$BUILT_JAR" "$SERVER_JAR"
             rm -rf "$BUILD_DIR"
             cd /server
         fi

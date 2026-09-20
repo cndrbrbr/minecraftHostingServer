@@ -24,9 +24,10 @@ RUN mvn clean package -DskipTests -q
 
 # ── Stage 2a: GraalVM JDK ───────────────────────────────────
 # Pull the official GraalVM Community image and copy the JDK out of it.
-# The graalvm-ce-builds GitHub repo only goes to 21.0.2; this image
-# always carries the latest GraalVM CE for JDK 21 (SDK 24.1.x).
-FROM ghcr.io/graalvm/jdk-community:21 AS graalvm-jdk
+# JDK 25 is required to build/run newer Minecraft versions (e.g. the 26.x
+# line) via BuildTools — bump this again if a future Minecraft version
+# requires a newer Java than this image supports.
+FROM ghcr.io/graalvm/jdk-community:25 AS graalvm-jdk
 RUN cp -r "$JAVA_HOME" /opt/graalvm-jdk
 
 # ── Stage 2: Runtime ────────────────────────────────────────
