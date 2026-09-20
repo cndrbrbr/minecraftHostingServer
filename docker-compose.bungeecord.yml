@@ -37,6 +37,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: ""
       CTRL_PUBKEY: ""
     volumes:
@@ -65,6 +66,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: "${MC1_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC1_CTRL_PUBKEY}"
     volumes:
@@ -89,6 +91,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: "${MC2_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC2_CTRL_PUBKEY}"
     volumes:
@@ -113,6 +116,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: "${MC3_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC3_CTRL_PUBKEY}"
     volumes:
@@ -137,6 +141,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: "${MC4_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC4_CTRL_PUBKEY}"
     volumes:
@@ -161,6 +166,7 @@ services:
       MC_MEM_MIN: "512M"
       MC_MEM_MAX: "1G"
       FORCE_BUILD: "false"
+      MC_SERVER_TYPE: "spigot"
       SFTP_PUBKEY: "${MC5_SFTP_PUBKEY}"
       CTRL_PUBKEY: "${MC5_CTRL_PUBKEY}"
     volumes:

@@ -30,11 +30,14 @@ LogLevel INFO
 Subsystem sftp internal-sftp
 
 # ── SFTP user (FileZilla) ─────────────────────────────────────
-# Chrooted to /server; starts in /data (= /server/data)
+# Chrooted to /server; starts at / (= /server itself) so students
+# have full access to their entire server directory, not just /data.
 # /server must be owned root:root 755 — guaranteed by entrypoint
+# (this is an OpenSSH ChrootDirectory requirement and the one
+# directory students can never get write access to — see README).
 Match User mc-sftp
     ChrootDirectory /server
-    ForceCommand internal-sftp -d /data
+    ForceCommand internal-sftp -d /
     AllowTcpForwarding no
     X11Forwarding no
     AllowAgentForwarding no

@@ -11,6 +11,13 @@ DATE="$1"
 BASE_URL="${BACKUP_URL:-}"
 NAME="${MC_NAME:-}"
 
+if [ "$(cat /server/.servertype 2>/dev/null)" = "custom" ]; then
+    echo "ERROR: this server is running custom software (MC_SERVER_TYPE=custom)."
+    echo "       Automatic restore assumes the managed Spigot file layout"
+    echo "       and is not available here. Manage backups yourself via SFTP."
+    exit 1
+fi
+
 if [ -z "$BASE_URL" ]; then
     echo "ERROR: BACKUP_URL is not configured for this server."
     echo "       Ask your admin to set it in docker-compose.yml."
@@ -48,7 +55,9 @@ fi
 echo "==> Restoring $NAME from backup $DATE..."
 echo "==> Stopping server..."
 touch /server/.stopped
-pkill -TERM -f "spigot-.*\.jar" 2>/dev/null || true
+if [ -f /server/.pid ]; then
+    kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
+fi
 sleep 3
 
 # Download and extract cfg, plugins, worlds

@@ -4,7 +4,9 @@
 # Creates the .stopped marker so the entrypoint loop waits instead of restarting.
 
 touch /server/.stopped
-pkill -TERM -f "spigot-.*\.jar" 2>/dev/null || true
+if [ -f /server/.pid ]; then
+    kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
+fi
 echo "==> Server stopped."
 echo "==> Use the start command to bring it back up."
 echo "==> You may close this connection."

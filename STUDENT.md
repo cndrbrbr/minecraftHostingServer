@@ -77,14 +77,29 @@ You only need to do this once. FileZilla remembers the key.
 
 ### Your server's file structure
 
-After connecting you land directly in your server's data folder `/data/`:
+After connecting you land at the root of your own server — you have full
+access to every file in it:
 
 ```
-/data/
-├── cfg/          — configuration files (server.properties, bukkit.yml, …)
-├── plugins/      — this is where you upload your plugin .jar files
-└── worlds/       — world saves (don't delete these during the workshop)
+/
+├── data/
+│   ├── cfg/          — configuration files (server.properties, bukkit.yml, …)
+│   ├── plugins/      — this is where you upload your plugin .jar files
+│   └── worlds/       — world saves (don't delete these during the workshop)
+├── whitelist.json, ops.json, logs/, spigot-x.x.x.jar, …
 ```
+
+You generally only need `data/` day-to-day — the rest is there if you need
+to look at logs or, for the "bring your own server" exception below, replace
+the server entirely.
+
+> **Using your own server software instead of Spigot (e.g. Forge)?** Ask
+> your teacher to mark your server as an exception first (`MC_SERVER_TYPE:
+> "custom"`). You'll then find a placeholder `start.sh` and folders like
+> `mods/`, `config/`, `libraries/`, `world/` already in your root — upload
+> your server into those and edit `start.sh` to launch it. In this mode the
+> `version` and `restore` PuTTY commands are not available — you manage your
+> own files and version over SFTP.
 
 ### Upload a plugin file
 

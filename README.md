@@ -10,6 +10,7 @@ Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/
   - [Standalone mode](#standalone-mode)
   - [BungeeCord mode](#bungeecord-mode)
   - [SSH access](#ssh-access-both-modes)
+  - [Server software: Spigot, or a student's own (custom)](#server-software-spigot-or-a-students-own-custom)
 - [Prerequisites](#prerequisites)
 - [First-time setup](#first-time-setup)
   - [Step 1 — Clone the repository](#step-1--clone-the-repository)
@@ -99,15 +100,86 @@ Players use `/server mc1` … `/server mc5` in-game to switch from the lobby to 
 ### SSH access (both modes)
 
 Each container runs Debian Trixie and contains:
-- A Spigot Minecraft server with the script4kids plugin (JavaScript engine powered by GraalVM CE JDK)
+- A Minecraft server — Spigot by default, with the script4kids plugin (JavaScript engine powered by GraalVM CE JDK); see [Server software](#server-software-spigot-or-a-students-own-custom) for the custom (e.g. Forge) alternative
 - An SSH server with exactly two locked-down users:
 
 | SSH user | Tool | Permission |
 |----------|------|------------|
-| `mc-sftp` | FileZilla | SFTP only, restricted to the server's data folder |
+| `mc-sftp` | FileZilla | SFTP only, chrooted to the student's own server root — full access to all of their own files, no access to other students |
 | `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, `version <x.x.x>`, `restore <date\|latest>`, or `adduser <minecraft-name>` — nothing else |
 
 Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
+
+Every student's SFTP session opens directly at their server's root directory
+(`/server`), not just the `data/` subfolder — students have full read/write
+access to their entire server (jar files, logs, whitelist, configs,
+everything) except the `/server` directory entry itself, which OpenSSH
+requires to stay `root:root` for the chroot to work at all.
+
+---
+
+### Server software: Spigot, or a student's own (custom)
+
+Each student server has an `MC_SERVER_TYPE` setting in `docker-compose.yml`:
+
+| `MC_SERVER_TYPE` | What happens |
+|---|---|
+| `spigot` *(default)* | BuildTools compiles the requested `SPIGOT_VERSION` on the volume, as today. |
+| `custom` | **The exception case** — for a student who wants different server software entirely (Forge, Fabric, vanilla, a specific fork, …). Nothing is managed for them: they upload their own server files plus an executable `start.sh` via SFTP, and the container just runs it. |
+
+(Paper was considered as a lighter-weight third option but was dropped: its
+"Paperclip" launcher needs to create several directories — `cache`,
+`libraries`, `versions`, `config`, and possibly more in future releases —
+directly in the server root, which conflicts with keeping that root locked
+down. `custom` covers the same need without that fragility.)
+
+To mark a student as an exception, edit their service block in
+`docker-compose.yml`:
+
+```yaml
+mc3:
+  environment:
+    MC_SERVER_TYPE: "custom"
+```
+
+Then `docker compose up -d --no-deps mc3`.
+
+**What the custom student needs to do:**
+
+1. Connect with FileZilla as usual — they now land at their full server root.
+   A placeholder `start.sh` and the common mod-loader folders (`mods/`,
+   `config/`, `libraries/`, `world/`, `logs/`, `crash-reports/`) already
+   exist there so they have somewhere to upload into — `/server` itself
+   can't accept brand-new top-level names (see the exception above), only
+   existing names can be written to.
+2. Upload their server into those folders (e.g. a Forge installer's output:
+   the server jar, its `libraries/`, `mods/`, etc.).
+3. Edit `start.sh` so it launches their server in the foreground, listening
+   on port `25565` (the value of `MC_PORT`). This is the one integration
+   point the workshop host requires — everything else about the server
+   layout is up to them.
+4. Run `start` from PuTTY as usual.
+
+If their server needs a top-level name that isn't pre-created (rare), the
+admin adds it once from the host:
+
+```bash
+docker compose exec mc3 mkdir /server/<name>
+docker compose exec mc3 chown mc-sftp:mc-sftp /server/<name>
+```
+
+**What's different for a custom-type student (the marked exception):**
+
+- `version` and `restore` refuse to run — both assume the managed Spigot
+  file layout. The student manages their own files and backups directly
+  over SFTP.
+- `stop` / `start` / `adduser` keep working (they only touch the process and
+  `whitelist.json`/`ops.json`, whose location and format is the same for
+  vanilla-family servers including Forge).
+- `./backup.sh` skips them automatically (no `data/` folder to zip) and says
+  so.
+- No script4kids plugin, no Prometheus exporter, no automatic EULA/whitelist
+  seeding beyond `eula.txt` — plugins are a Bukkit/Spigot-only concept.
 
 ---
 
@@ -373,7 +445,7 @@ The message appears in-game as `[ADMIN] <your text>`. Containers that are not ru
 ### Restart only the Minecraft process inside a container (admin shortcut)
 
 ```bash
-docker compose exec mc3 bash -c 'rm -f /server/.stopped && pkill -TERM -f "spigot-.*\.jar" 2>/dev/null; true'
+docker compose exec mc3 bash -c 'rm -f /server/.stopped; [ -f /server/.pid ] && kill -TERM "$(cat /server/.pid)"; true'
 ```
 
 The container stays up, SSH stays available. The server is back within ~10 seconds.
@@ -526,8 +598,9 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
 | `MC_BUNGEECORD` | `docker-compose.yml` | `true` to enable BungeeCord IP forwarding in spigot.yml |
-| `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build (can be overridden per-server by the student via `version` command) |
-| `FORCE_BUILD` | `docker-compose.yml` | `true` to force Spigot rebuild on next start |
+| `MC_SERVER_TYPE` | `docker-compose.yml` | `spigot` (default) or `custom` — see [Server software](#server-software-spigot-or-a-students-own-custom) |
+| `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build (ignored for `custom`; can be overridden per-server by the student via `version` command) |
+| `FORCE_BUILD` | `docker-compose.yml` | `true` to force a Spigot rebuild on next start (ignored for `custom`) |
 | `BACKUP_URL` | `docker-compose.yml` | Base URL of the backup HTTP server — required for the `restore` command |
 | `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
 | `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
@@ -704,7 +777,7 @@ iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
 |-------|-------------|
 | Docker container | Each student's server is fully isolated — no access to other containers or the host filesystem |
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
-| SSH chroot | `mc-sftp` is locked into `/server`; cannot navigate outside the container's data directory |
+| SSH chroot | `mc-sftp` is locked into `/server` (their own server's root) and cannot navigate outside it or reach any other student's container. Within `/server` they have full read/write access to their own files — the one exception is the `/server` directory entry itself, which OpenSSH requires to stay `root:root` for the chroot to work |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
 | sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh`, `sudo /mc-restore.sh`, `sudo /mc-adduser.sh` — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
@@ -748,12 +821,12 @@ mchost/
 │   └── config.yml                  # online_mode, ip_forward, server list, listener
 └── spigot/
     ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
-    ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds Spigot → runs MC
-    ├── sshd_config                 # ChrootDirectory for mc-sftp, ForceCommand for mc-ctrl
+    ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds/runs MC per MC_SERVER_TYPE
+    ├── sshd_config                 # ChrootDirectory for mc-sftp (full server root), ForceCommand for mc-ctrl
     ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version/restore/adduser
     ├── mc-start.sh                 # removes .stopped marker → entrypoint loop launches the server
-    ├── mc-stop.sh                  # creates .stopped marker + kills Java → server stays down
-    ├── mc-version.sh               # writes requested version to /server/.version on the volume
+    ├── mc-stop.sh                  # creates .stopped marker + kills the process via /server/.pid → server stays down
+    ├── mc-version.sh               # writes requested version to /server/.version on the volume (spigot type only)
     ├── mc-restore.sh               # fetches backup zips by date, extracts to volume
     ├── mc-adduser.sh               # adds a Minecraft username to whitelist.json and ops.json
     ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume

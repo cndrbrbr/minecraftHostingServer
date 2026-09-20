@@ -1,7 +1,25 @@
 #!/bin/bash
 set -e
 
-DEFAULT_SPIGOT_VERSION=${SPIGOT_VERSION:-1.21.11}
+DEFAULT_VERSION=${SPIGOT_VERSION:-1.21.11}
+
+# ── Server type ──────────────────────────────────────────────
+# spigot (default) — BuildTools compiles Spigot from source on the volume,
+#                     as it always has.
+# custom            — the "bring your own server" exception (e.g. Forge,
+#                      Fabric, vanilla, a specific fork, …). Nothing is
+#                      managed: the student uploads their own server files
+#                      plus an executable /server/start.sh, and this script
+#                      just runs it. version/restore are not available in
+#                      this mode — see README.
+SERVER_TYPE="${MC_SERVER_TYPE:-spigot}"
+case "$SERVER_TYPE" in
+    spigot|custom) ;;
+    *)
+        echo "==> WARNING: unknown MC_SERVER_TYPE '$SERVER_TYPE' — falling back to 'spigot'."
+        SERVER_TYPE="spigot"
+        ;;
+esac
 
 # ── SSH host keys ────────────────────────────────────────────
 # Stored on the volume so the fingerprint is stable across restarts
@@ -33,86 +51,105 @@ mkdir -p /run/sshd
 /usr/sbin/sshd
 echo "==> SSH server started"
 
+# Record the server type on the volume so mc-version.sh / mc-restore.sh /
+# mc-adduser.sh (which run later via sudo, with a reset environment) can
+# read it back without relying on env vars surviving sudo.
+echo "$SERVER_TYPE" > /server/.servertype
 
-# ── Volume directory structure ────────────────────────────────
-mkdir -p /server/data/cfg /server/data/plugins /server/data/worlds
+if [ "$SERVER_TYPE" != "custom" ]; then
+    # ── Volume directory structure (managed Spigot layout) ───────
+    mkdir -p /server/data/cfg /server/data/plugins /server/data/worlds
 
-# ── Plugin: always update so image rebuilds take effect ──────
-cp /server-base/plugins/*.jar /server/data/plugins/
+    # ── Plugin: always update so image rebuilds take effect ──────
+    cp /server-base/plugins/*.jar /server/data/plugins/
 
-# ── PrometheusExporter config: copy on first run only ────────
-mkdir -p /server/data/plugins/PrometheusExporter
-[ -f /server/data/plugins/PrometheusExporter/config.yml ] || \
-    cp /server-base/plugins/PrometheusExporter/config.yml /server/data/plugins/PrometheusExporter/config.yml
+    # ── PrometheusExporter config: copy on first run only ────────
+    mkdir -p /server/data/plugins/PrometheusExporter
+    [ -f /server/data/plugins/PrometheusExporter/config.yml ] || \
+        cp /server-base/plugins/PrometheusExporter/config.yml /server/data/plugins/PrometheusExporter/config.yml
 
-# ── Config: copy to volume on first run only ─────────────────
-[ -f /server/eula.txt ]                       || echo "eula=true" > /server/eula.txt
-[ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
-[ -f /server/whitelist.json ]                 || cp /server-base/whitelist.json /server/whitelist.json
+    # ── Config: copy to volume on first run only ─────────────────
+    [ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
+    [ -f /server/whitelist.json ]                 || cp /server-base/whitelist.json /server/whitelist.json
 
-# spigot.yml: copy on first run, then patch bungeecord flag from env
-if [ ! -f /server/data/cfg/spigot.yml ]; then
-    cp /server-base/spigot.yml /server/data/cfg/spigot.yml
-fi
-if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
-    sed -i 's/bungeecord: false/bungeecord: true/' /server/data/cfg/spigot.yml
+    # spigot.yml: copy on first run, then patch bungeecord flag from env
+    if [ ! -f /server/data/cfg/spigot.yml ]; then
+        cp /server-base/spigot.yml /server/data/cfg/spigot.yml
+    fi
+    if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
+        sed -i 's/bungeecord: false/bungeecord: true/' /server/data/cfg/spigot.yml
+    else
+        sed -i 's/bungeecord: true/bungeecord: false/' /server/data/cfg/spigot.yml
+    fi
+
+    # server.properties: online-mode abhängig von BungeeCord-Modus
+    # Mit BungeeCord: online-mode=false (BungeeCord übernimmt die Authentifizierung)
+    # Ohne BungeeCord: online-mode=true
+    if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
+        sed -i 's/online-mode=true/online-mode=false/' /server/data/cfg/server.properties
+    else
+        sed -i 's/online-mode=false/online-mode=true/' /server/data/cfg/server.properties
+    fi
+
+    mkdir -p /server/bundler /server/logs /server/crash-reports
 else
-    sed -i 's/bungeecord: true/bungeecord: false/' /server/data/cfg/spigot.yml
+    # ── Custom mode: /server itself can't be made writable (see below), so
+    # pre-create the entry point plus the directory names most server
+    # software (Forge, Fabric, vanilla, …) expects at its root. If a
+    # student's server needs another top-level name that doesn't exist yet,
+    # the admin creates it once with:
+    #   docker compose exec <name> mkdir /server/<dir>
+    #   docker compose exec <name> chown mc-sftp:mc-sftp /server/<dir>
+    if [ ! -f /server/start.sh ]; then
+        cat > /server/start.sh <<'STARTSH'
+#!/bin/bash
+# Replace this with the command that launches your server, e.g.:
+#   exec java -Xms1G -Xmx2G -jar server.jar --nogui
+echo "start.sh has not been set up yet — edit it to launch your server."
+exit 1
+STARTSH
+    fi
+    chmod +x /server/start.sh
+    mkdir -p /server/mods /server/config /server/libraries /server/world /server/logs /server/crash-reports
 fi
 
-# server.properties: online-mode abhängig von BungeeCord-Modus
-# Mit BungeeCord: online-mode=false (BungeeCord übernimmt die Authentifizierung)
-# Ohne BungeeCord: online-mode=true
-if [ "${MC_BUNGEECORD:-false}" = "true" ]; then
-    sed -i 's/online-mode=true/online-mode=false/' /server/data/cfg/server.properties
-else
-    sed -i 's/online-mode=false/online-mode=true/' /server/data/cfg/server.properties
-fi
+[ -f /server/eula.txt ] || echo "eula=true" > /server/eula.txt
 
-# ── Permissions for ChrootDirectory ──────────────────────────
-# /server must be root:root 755 (sshd ChrootDirectory requirement)
-chown root:root /server
-chmod 755 /server
-# Students write to /server/data via SFTP
-chown -R mc-sftp:mc-sftp /server/data
-# Spigot unpacks itself into /server/bundler — must be writable by mc-sftp
-mkdir -p /server/bundler
-chown -R mc-sftp:mc-sftp /server/bundler
-chmod -R u+rwX,go+rX /server/data
-# /server/ is root:root 755 (SSH chroot requirement) so mc-sftp cannot create
-# new files there. Pre-create every file Spigot writes to its working dir so
-# the Java process (mc-sftp) can open them for writing.
+# Pre-create every root-level file a vanilla-format server (Spigot, and
+# also Forge/vanilla for custom-type students) writes to on its own —
+# /server itself can't be group-writable (see below), so any filename the
+# server process wants to create fresh has to already exist.
+[ -f /server/whitelist.json ]      || echo '[]' > /server/whitelist.json
 [ -f /server/ops.json ]            || echo '[]' > /server/ops.json
 [ -f /server/banned-players.json ] || echo '[]' > /server/banned-players.json
 [ -f /server/banned-ips.json ]     || echo '[]' > /server/banned-ips.json
 [ -f /server/usercache.json ]      || echo '[]' > /server/usercache.json
 [ -f /server/help.yml ]            || touch /server/help.yml
 [ -f /server/permissions.yml ]     || touch /server/permissions.yml
-chown root:mc-sftp \
-    /server/whitelist.json /server/ops.json \
-    /server/banned-players.json /server/banned-ips.json \
-    /server/usercache.json /server/help.yml /server/permissions.yml
-chmod 664 \
-    /server/whitelist.json /server/ops.json \
-    /server/banned-players.json /server/banned-ips.json \
-    /server/usercache.json /server/help.yml /server/permissions.yml
-# Spigot also needs to write into logs/ and crash-reports/
-mkdir -p /server/logs /server/crash-reports
-chown root:mc-sftp /server/logs /server/crash-reports
-chmod 775 /server/logs /server/crash-reports
-find /server/logs /server/crash-reports -type f \
-    -exec chown root:mc-sftp {} \; \
-    -exec chmod 664 {} \; 2>/dev/null || true
 
-# ── watch_copy: push image config changes to volume at runtime
-/watch_copy.sh /server-base/server.properties /server/data/cfg/server.properties &
+# ── Permissions ────────────────────────────────────────────────
+# /server itself must stay root:root 755 — OpenSSH's ChrootDirectory
+# refuses to start sshd otherwise. This is the one directory a student
+# can never get write access to. Everything else under /server is
+# handed over so students have full control of their own server.
+chown root:root /server
+chmod 755 /server
+find /server -mindepth 1 -exec chown mc-sftp:mc-sftp {} +
+# Host keys must stay root-owned and unreadable by anyone else.
+chown root:root /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
+chmod 600 /server/ssh_host_ed25519_key /server/ssh_host_rsa_key
+
+if [ "$SERVER_TYPE" != "custom" ]; then
+    # ── watch_copy: push image config changes to volume at runtime
+    /watch_copy.sh /server-base/server.properties /server/data/cfg/server.properties &
+fi
 
 # ── Start server with auto-restart loop ─────────────────────
 # Exits only when /server/.shutdown exists (docker stop).
 # A SIGTERM from mc-stop.sh causes a non-zero exit → paused (not restarted)
 # when /server/.stopped is present. mc-start.sh removes .stopped to resume.
 cd /server
-echo "==> Minecraft server loop starting..."
+echo "==> Minecraft server loop starting (type: ${SERVER_TYPE})..."
 
 while true; do
     # Wait while the student has manually stopped the server
@@ -120,45 +157,65 @@ while true; do
         sleep 2
     done
 
-    # Re-read version on every start so version changes take effect
-    # without restarting the container
-    SPIGOT_VERSION=${DEFAULT_SPIGOT_VERSION}
-    if [ -f /server/.version ]; then
-        SPIGOT_VERSION=$(cat /server/.version | tr -d '[:space:]')
-    fi
-    SPIGOT_JAR="/server/spigot-${SPIGOT_VERSION}.jar"
+    if [ "$SERVER_TYPE" = "custom" ]; then
+        if [ ! -f /server/start.sh ]; then
+            echo "==> No /server/start.sh found. Upload your server files and an"
+            echo "==> executable start.sh via SFTP, then run 'start' again. Waiting..."
+            touch /server/.stopped
+            continue
+        fi
+        chmod +x /server/start.sh
+        echo "==> Starting custom server via /server/start.sh ..."
+        runuser -u mc-sftp -- /server/start.sh &
+        PID=$!
+    else
+        # Re-read version on every start so version changes take effect
+        # without restarting the container
+        VERSION=${DEFAULT_VERSION}
+        if [ -f /server/.version ]; then
+            VERSION=$(cat /server/.version | tr -d '[:space:]')
+        fi
+        SERVER_JAR="/server/spigot-${VERSION}.jar"
 
-    # Build Spigot if this version is not cached on the volume yet
-    if [ ! -f "$SPIGOT_JAR" ] || [ "${FORCE_BUILD:-false}" = "true" ]; then
-        echo "==> Building Spigot ${SPIGOT_VERSION} via BuildTools (this takes a few minutes)..."
-        BUILD_DIR=$(mktemp -d)
-        cd "$BUILD_DIR"
-        java -jar /buildtools/BuildTools.jar --rev "${SPIGOT_VERSION}" --compile SPIGOT
-        cp "${BUILD_DIR}/spigot-${SPIGOT_VERSION}.jar" "$SPIGOT_JAR"
-        rm -rf "$BUILD_DIR"
-        cd /server
+        # Build Spigot if this version is not cached on the volume yet
+        if [ ! -f "$SERVER_JAR" ] || [ "${FORCE_BUILD:-false}" = "true" ]; then
+            echo "==> Building Spigot ${VERSION} via BuildTools (this takes a few minutes)..."
+            BUILD_DIR=$(mktemp -d)
+            cd "$BUILD_DIR"
+            java -jar /buildtools/BuildTools.jar --rev "${VERSION}" --compile SPIGOT
+            cp "${BUILD_DIR}/spigot-${VERSION}.jar" "$SERVER_JAR"
+            rm -rf "$BUILD_DIR"
+            cd /server
+        fi
+
+        chown mc-sftp:mc-sftp "$SERVER_JAR"
+
+        echo "==> Starting Minecraft server ${VERSION}..."
+        runuser -u mc-sftp -- java \
+            -Xms${MC_MEM_MIN:-512M} \
+            -Xmx${MC_MEM_MAX:-1G} \
+            -Dpolyglot.engine.WarnInterpreterOnly=false \
+            --add-opens=java.base/java.lang=ALL-UNNAMED \
+            --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
+            --add-opens=java.base/java.lang.ref=ALL-UNNAMED \
+            --add-opens=java.base/java.nio=ALL-UNNAMED \
+            --add-opens=java.base/java.util=ALL-UNNAMED \
+            -jar "$SERVER_JAR" \
+            --config        "./data/cfg/server.properties" \
+            --bukkit-settings  "./data/cfg/bukkit.yml" \
+            --spigot-settings  "./data/cfg/spigot.yml" \
+            --commands-settings "./data/cfg/commands.yml" \
+            --plugins       "./data/plugins" \
+            --world-dir     "./data/worlds" \
+            --level-name    "${MC_LEVELNAME:-world}" \
+            --port          "${MC_PORT:-25565}" \
+            nogui &
+        PID=$!
     fi
 
-    echo "==> Starting Minecraft server ${SPIGOT_VERSION}..."
-    runuser -u mc-sftp -- java \
-        -Xms${MC_MEM_MIN:-512M} \
-        -Xmx${MC_MEM_MAX:-1G} \
-        -Dpolyglot.engine.WarnInterpreterOnly=false \
-        --add-opens=java.base/java.lang=ALL-UNNAMED \
-        --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
-        --add-opens=java.base/java.lang.ref=ALL-UNNAMED \
-        --add-opens=java.base/java.nio=ALL-UNNAMED \
-        --add-opens=java.base/java.util=ALL-UNNAMED \
-        -jar "$SPIGOT_JAR" \
-        --config        "./data/cfg/server.properties" \
-        --bukkit-settings  "./data/cfg/bukkit.yml" \
-        --spigot-settings  "./data/cfg/spigot.yml" \
-        --commands-settings "./data/cfg/commands.yml" \
-        --plugins       "./data/plugins" \
-        --world-dir     "./data/worlds" \
-        --level-name    "${MC_LEVELNAME:-world}" \
-        --port          "${MC_PORT:-25565}" \
-        nogui || true
+    echo "$PID" > /server/.pid
+    wait "$PID" || true
+    rm -f /server/.pid
 
     # Graceful shutdown requested by docker stop (SIGTERM to PID 1)
     if [ -f /server/.shutdown ]; then

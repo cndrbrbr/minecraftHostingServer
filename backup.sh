@@ -55,6 +55,11 @@ backup_container() {
         return
     fi
 
+    if ! docker compose exec -T "$NAME" test -d /server/data 2>/dev/null; then
+        echo "⚠  $NAME has no /server/data (custom server type) — skipping automatic backup."
+        return
+    fi
+
     echo "==> Backing up $NAME..."
     for part in cfg plugins worlds; do
         echo -n "    $part ... "

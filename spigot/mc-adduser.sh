@@ -22,6 +22,9 @@ fi
 WHITELIST_FILE="/server/whitelist.json"
 OPS_FILE="/server/ops.json"
 PROPS_FILE="/server/data/cfg/server.properties"
+# Custom-type servers (e.g. Forge, vanilla) keep server.properties at the
+# root instead of the managed Spigot data/cfg layout.
+[ -f "$PROPS_FILE" ] || PROPS_FILE="/server/server.properties"
 
 # ── Determine UUID ────────────────────────────────────────────
 ONLINE_MODE=$(grep "^online-mode=" "$PROPS_FILE" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')
@@ -78,7 +81,7 @@ chown root:mc-sftp "$OPS_FILE" && chmod 664 "$OPS_FILE"
 echo "==> '$USERNAME' added to ops (level 4)."
 
 # ── Live reload ───────────────────────────────────────────────
-if pgrep -f "spigot-.*\.jar" > /dev/null 2>&1; then
+if [ -f /server/.pid ] && kill -0 "$(cat /server/.pid)" 2>/dev/null; then
     echo "whitelist reload" > /proc/1/fd/0 2>/dev/null || true
     echo "==> Whitelist reloaded — '$USERNAME' can connect immediately."
     echo "==> Operator permissions take effect after the next server restart."

@@ -7,6 +7,13 @@
 
 VERSION="$1"
 
+if [ "$(cat /server/.servertype 2>/dev/null)" = "custom" ]; then
+    echo "ERROR: this server is running custom software (MC_SERVER_TYPE=custom)."
+    echo "       There is no 'version' to set here — manage your server files"
+    echo "       directly via SFTP."
+    exit 1
+fi
+
 if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
     echo "ERROR: Invalid version format '$VERSION'."
     echo "Usage: ssh mc-ctrl@<host> -p <port> version <version>"
