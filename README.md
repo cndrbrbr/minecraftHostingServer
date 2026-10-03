@@ -285,7 +285,7 @@ keys/
 docker compose up -d
 ```
 
-The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, pulls GraalVM CE JDK, compiles the plugin). Every start after that is done in seconds.
+The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, pulls GraalVM CE JDK, downloads the plugin). Every start after that is done in seconds.
 
 > **Why GraalVM CE JDK?** The script4kids plugin runs student JavaScript via the GraalVM polyglot engine, which requires GraalVM's JDK — standard OpenJDK cannot initialize the JS engine. The container base is still Debian Trixie; GraalVM replaces only the JDK.
 
@@ -424,6 +424,17 @@ ssh -i keys/mc3/ctrl_key -p 2223 mc-ctrl@localhost adduser CoolPlayer99
 Students do the same from their own machine using PuTTY (see `STUDENT.md`).
 
 **How versioning works:** `version <x.x.x>` writes the requested version to the container volume. The change takes effect after the next `stop` + `start`. If that version has never been built before, BuildTools compiles it on first start (5–10 minutes). Subsequent starts with the same version are instant because the JAR is cached on the volume.
+
+The default version is **26.3** (`SPIGOT_VERSION`); servers whose student never ran `version` use it.
+The image contains the script4kids plugin built for 1.21.11 and for 26.3 (release tags
+`v<version>-mc<minecraft>`, version set by `JSMN_VERSION` in `spigot/Dockerfile`); before every start
+the matching one is copied to `data/plugins/` — the 26.3 build for 26.3 and newer, the 1.21.11 build
+for anything older. script4kids needs at least 1.21.11.
+
+> **Worlds only go forward.** Starting a world with a newer version converts it; an older version can
+> no longer load it afterwards (the server fails with `No key dimensions … No key seed` and keeps
+> restarting). To go back to an older version, `restore` a backup made with that version or start
+> with an empty `data/worlds/`.
 
 **How restore works:** `restore <date|latest>` downloads backup zips from the configured `BACKUP_URL`, stops the server, extracts cfg/plugins/worlds, then waits. The student runs `start` to bring the server back up. See the [Backup and restore](#backup-and-restore) section for setup.
 
@@ -597,7 +608,7 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
 | `MC_BUNGEECORD` | `docker-compose.yml` | `true` to enable BungeeCord IP forwarding in spigot.yml |
 | `MC_SERVER_TYPE` | `docker-compose.yml` | `spigot` (default) or `custom` — see [Server software](#server-software-spigot-or-a-students-own-custom) |
-| `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build (ignored for `custom`; can be overridden per-server by the student via `version` command) |
+| `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build, `26.3` if unset (ignored for `custom`; can be overridden per-server by the student via `version` command) |
 | `FORCE_BUILD` | `docker-compose.yml` | `true` to force a Spigot rebuild on next start (ignored for `custom`) |
 | `BACKUP_URL` | `docker-compose.yml` | Base URL of the backup HTTP server — required for the `restore` command |
 | `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |

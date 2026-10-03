@@ -1,7 +1,7 @@
 # ============================================================
 # Spigot container — multi-stage build
 #
-# Stage 1: Build the script4kids plugin from source
+# Stage 1: GraalVM JDK
 # Stage 2: Runtime image with SSH access for students
 #
 # Each container exposes:
@@ -13,16 +13,7 @@
 #   mc-ctrl  — PuTTY access, dispatched via /mc-dispatch.sh (start / stop / version / restore)
 # ============================================================
 
-# ── Stage 1: Build plugin ───────────────────────────────────
-FROM debian:trixie-slim AS plugin-builder
-
-RUN apt-get update && apt-get install -y openjdk-21-jdk git maven && rm -rf /var/lib/apt/lists/*
-
-RUN git clone --depth=1 https://github.com/cndrbrbr/script4kids.git /build
-WORKDIR /build
-RUN mvn clean package -DskipTests -q
-
-# ── Stage 2a: GraalVM JDK ───────────────────────────────────
+# ── Stage 1: GraalVM JDK ────────────────────────────────────
 # Pull the official GraalVM Community image and copy the JDK out of it.
 # JDK 25 is required to build/run newer Minecraft versions (e.g. the 26.x
 # line) via BuildTools — bump this again if a future Minecraft version
@@ -38,7 +29,7 @@ RUN apt-get update && apt-get install -y \
     openssh-server sudo zip unzip jq python3-minimal \
     && rm -rf /var/lib/apt/lists/*
 
-# GraalVM Community JDK 21 — copied from official image above
+# GraalVM Community JDK 25 — copied from official image above
 COPY --from=graalvm-jdk /opt/graalvm-jdk /opt/graalvm
 ENV JAVA_HOME=/opt/graalvm
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
@@ -68,7 +59,17 @@ RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc
 WORKDIR /server-base
 
 # Plugin JARs
-COPY --from=plugin-builder /build/target/jsmn-1.0-SNAPSHOT.jar plugins/
+# script4kids (jsmn) publishes one release per Minecraft version (tag
+# v<version>-mc<minecraft>). Both are kept in the image; entrypoint.sh copies
+# the one matching the server's current version before every start, since
+# students can switch versions with 'version <x.y.z>'.
+ARG JSMN_VERSION=1.1.0
+RUN for mc in 1.21.11 26.3; do \
+        mkdir -p "plugins-mc/$mc" && \
+        curl -fsSL -o "plugins-mc/$mc/jsmn-${JSMN_VERSION}-mc$mc.jar" \
+            "https://github.com/cndrbrbr/script4kids/releases/download/v${JSMN_VERSION}-mc$mc/jsmn-${JSMN_VERSION}-mc$mc.jar" \
+        || exit 1; \
+    done
 COPY minecraft-prometheus-exporter.jar plugins/
 COPY prometheus-exporter-config.yml plugins/PrometheusExporter/config.yml
 

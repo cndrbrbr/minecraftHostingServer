@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DEFAULT_VERSION=${SPIGOT_VERSION:-1.21.11}
+DEFAULT_VERSION=${SPIGOT_VERSION:-26.3}
 
 # ── Server type ──────────────────────────────────────────────
 # spigot (default) — BuildTools compiles Spigot from source on the volume,
@@ -209,6 +209,19 @@ while true; do
         fi
 
         chown mc-sftp:mc-sftp "$SERVER_JAR"
+
+        # ── script4kids (jsmn): pick the jar built for this version ──
+        # A plugin built for a newer API than the server refuses to load, so
+        # servers on 26.3+ get the 26.3 build and everything older the 1.21.11
+        # build (which needs at least 1.21.11 itself).
+        if [ "$(printf '%s\n%s\n' 26.3 "$VERSION" | sort -V | head -n1)" = "26.3" ]; then
+            JSMN_MC=26.3
+        else
+            JSMN_MC=1.21.11
+        fi
+        rm -f /server/data/plugins/jsmn-*.jar
+        cp /server-base/plugins-mc/"$JSMN_MC"/jsmn-*.jar /server/data/plugins/
+        chown mc-sftp:mc-sftp /server/data/plugins/jsmn-*.jar
 
         echo "==> Starting Minecraft server ${VERSION}..."
         runuser -u mc-sftp -- java \
