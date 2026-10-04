@@ -14,6 +14,6 @@ done
 chown -R app:app /run/keys /data
 chmod -R go-rwx /run/keys
 cd /app
-exec setpriv --reuid=app --regid=app --init-groups \
+exec env HOME=/home/app setpriv --reuid=app --regid=app --init-groups \
     uvicorn app.main:get_app --factory --host 0.0.0.0 --port 8000 \
     --proxy-headers --forwarded-allow-ips='*' --no-server-header
