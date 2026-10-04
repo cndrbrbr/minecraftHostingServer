@@ -2,7 +2,7 @@
 # backup.sh — Create dated backups of Minecraft server data volumes.
 #
 # Usage:
-#   ./backup.sh              — back up lobby (if running) + all 5 servers
+#   ./backup.sh              — back up lobby (if running) + all servers in servers.txt
 #   ./backup.sh 1            — back up mc1 only
 #   ./backup.sh 1 3 5        — back up mc1, mc3, mc5
 #   ./backup.sh lobby        — back up lobby only
@@ -22,6 +22,13 @@ cd "$(dirname "$0")"
 DATE=$(date +%Y-%m-%d)
 BACKUP_DIR="$(pwd)/backups"
 
+# Servers from servers.txt (written by setup.sh); fallback for old setups
+if [ -f servers.txt ]; then
+    mapfile -t ALL_SERVERS < servers.txt
+else
+    ALL_SERVERS=(lobby mc1 mc2 mc3 mc4 mc5)
+fi
+
 # Build list of containers to back up
 if [ $# -eq 0 ]; then
     # No arguments — back up lobby if running, then all mc servers
@@ -29,7 +36,9 @@ if [ $# -eq 0 ]; then
     if docker compose ps --status running lobby 2>/dev/null | grep -q lobby; then
         CONTAINERS+=(lobby)
     fi
-    CONTAINERS+=(mc1 mc2 mc3 mc4 mc5)
+    for s in "${ALL_SERVERS[@]}"; do
+        [ "$s" = lobby ] || CONTAINERS+=("$s")
+    done
 else
     # Arguments given — convert numbers to mc<N>, pass "lobby" as-is
     CONTAINERS=()

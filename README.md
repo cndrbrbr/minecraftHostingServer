@@ -1,6 +1,6 @@
 # Minecraft Workshop Host — Admin Guide
 
-This system runs **5 isolated Spigot Minecraft servers** on a single host, one per student, each in its own Docker container. Students connect to their server with FileZilla (file upload) and PuTTY (server restart). They cannot access each other's servers or do anything beyond those two actions.
+This system runs **isolated Spigot Minecraft servers** (5 by default, any number from 1 to 30) on a single host, one per student, each in its own Docker container. Students manage their server on the **admin page** — a web page with e-mail login code where they start/stop it, install or upload plugins and manage players — or with FileZilla (files) and PuTTY (start/stop). They cannot access each other's servers.
 
 Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/javascriptMinecraftWorkshopServer).
 
@@ -14,11 +14,23 @@ Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/
 - [Prerequisites](#prerequisites)
 - [First-time setup](#first-time-setup)
   - [Step 1 — Clone the repository](#step-1--clone-the-repository)
-  - [Step 2 — Configure memory and choose deployment mode](#step-2--configure-memory-and-choose-deployment-mode)
-  - [Step 3 — Generate SSH keys](#step-3--generate-ssh-keys)
+  - [Step 2 — Run setup.sh](#step-2--run-setupsh)
+  - [Step 3 — SSH keys](#step-3--ssh-keys)
   - [Step 4 — Build the image and start all servers](#step-4--build-the-image-and-start-all-servers)
   - [Step 5 — Verify everything is running](#step-5--verify-everything-is-running)
   - [Step 6 — Distribute keys to students](#step-6--distribute-keys-to-students)
+  - [Step 7 — First login on the admin page](#step-7--first-login-on-the-admin-page)
+- [Admin page](#admin-page)
+  - [What students and teachers can do](#what-students-and-teachers-can-do)
+  - [Login with e-mail code](#login-with-e-mail-code)
+  - [Assigning and releasing servers](#assigning-and-releasing-servers)
+  - [HTTPS](#https)
+  - [Sending mail](#sending-mail)
+  - [Mail test mode](#mail-test-mode)
+  - [adminctl](#adminctl)
+  - [How the admin page talks to the servers](#how-the-admin-page-talks-to-the-servers)
+  - [Troubleshooting](#troubleshooting-admin-page)
+- [Plugin catalog](#plugin-catalog)
 - [Day-of-workshop operations](#day-of-workshop-operations)
   - [Start all servers](#start-all-servers)
   - [Start or restart a single server](#start-or-restart-a-single-server)
@@ -35,7 +47,7 @@ Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/
   - [Update after a git pull](#update-after-a-git-pull)
   - [Force a Spigot version update](#force-a-spigot-version-update)
   - [Replace a student's lost key](#replace-a-students-lost-key)
-  - [Switch deployment mode](#switch-deployment-mode)
+  - [Switch deployment mode or number of servers](#switch-deployment-mode-or-number-of-servers)
   - [Re-run memory configuration](#re-run-memory-configuration)
 - [Configuration reference](#configuration-reference)
   - [Changing max players](#changing-max-players)
@@ -53,16 +65,18 @@ Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/
 - [Security model](#security-model)
 - [File structure](#file-structure)
 
-Two deployment modes are available — choose when running `configure-memory.sh`:
+Two deployment modes are available — choose when running `setup.sh`:
 
 | Mode | When to use |
 |------|-------------|
-| **standalone** | Simple setup — each server has its own Minecraft port (25565–25569). Students connect to different ports. |
+| **standalone** | Simple setup — each server has its own Minecraft port (25565, 25566, …; up to 10 servers). Students connect to different ports. |
 | **bungeecord** | Network setup — a BungeeCord proxy and lobby sit in front. All players connect on a single port (25565) and are routed to their server. |
 
 ---
 
 ## How it works
+
+The diagrams show the default of 5 servers; `setup.sh --servers N` creates `mc1` … `mcN` with the same port scheme (SSH `2220+N`, Prometheus `9940+N`, standalone Minecraft `25564+N`).
 
 ### Standalone mode
 
@@ -93,7 +107,9 @@ Host machine
 
 All containers communicate on an internal Docker bridge network (`workshop`). Student servers have no externally reachable Minecraft port — only the BungeeCord proxy is exposed.
 
-Players use `/server mc1` … `/server mc5` in-game to switch from the lobby to a student server.
+Players use `/server mc1` … `/server mcN` in-game to switch from the lobby to a student server.
+
+With the admin page enabled, two or three more containers run next to the servers: `adminpanel` (the web page), plus `caddy` (HTTPS) or `mailpit` (mail test mode) depending on the options — see [Admin page](#admin-page).
 
 ---
 
@@ -106,7 +122,7 @@ Each container runs Debian Trixie and contains:
 | SSH user | Tool | Permission |
 |----------|------|------------|
 | `mc-sftp` | FileZilla | SFTP only, chrooted to the student's own server root — full access to all of their own files, no access to other students |
-| `mc-ctrl` | PuTTY / ssh | Runs `start`, `stop`, `version <x.x.x>`, `restore <date\|latest>`, or `adduser <minecraft-name>` — nothing else |
+| `mc-ctrl` | PuTTY / ssh, admin page | Runs `start`, `stop`, `version <x.x.x>`, `restore <date\|latest>`, `adduser <minecraft-name>` and the [admin page commands](#how-the-admin-page-talks-to-the-servers) — nothing else |
 
 Students authenticate with SSH keys. No passwords, no shell, no way to reach other containers.
 
@@ -210,57 +226,68 @@ git clone git@github.com:cndrbrbr/minecraftHostingServer.git mchost
 cd mchost
 ```
 
-### Step 2 — Configure memory and choose deployment mode
+### Step 2 — Run setup.sh
 
-This script reads the host's total RAM, reserves 15 % (minimum 2 GB) for the OS and Docker, and splits the rest equally across the servers. It writes a `docker-compose.yml` from the appropriate template and generates per-server start scripts.
+`setup.sh` does the whole configuration in one go:
 
-**Choose your mode at the command line:**
+- reads the host's total RAM, reserves 15 % (minimum 2 GB) for the OS and Docker (plus 512 MB for BungeeCord and 384 MB for the admin page), and splits the rest equally across the servers,
+- generates the SSH keys for every server (existing keys are kept),
+- writes `docker-compose.yml`, `servers.json`, `servers.txt`, `bungee/config.yml` (BungeeCord mode), `Caddyfile` (own HTTPS) and the `start-*.sh` scripts,
+- stores all settings in `.env`, so a later re-run only needs the options that change.
+
+Everything is given on the command line (missing required values are asked interactively when run in a terminal):
 
 ```bash
-chmod +x configure-memory.sh
-
-./configure-memory.sh --standalone    # 5 servers, direct Minecraft ports 25565–25569
-./configure-memory.sh --bungeecord    # BungeeCord proxy + lobby + 5 servers, single port 25565
-./configure-memory.sh                 # interactive prompt if no flag given
+./setup.sh --bungeecord \
+           --servers 5 \
+           --domain admin.meckminecraft.de \
+           --admin-email teacher@example.de \
+           --mail-from tech@screenpaper.de \
+           --smtp-host mx2fed.netcup.net --smtp-port 465 --smtp-tls ssl
 ```
 
-Example output on a 16 GB machine (standalone):
+The SMTP password is then asked for with a hidden prompt (see [Sending mail](#sending-mail)).
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--standalone` / `--bungeecord` | asked | Deployment mode |
+| `--servers N` | `5` | Number of student servers (1–30; standalone up to 10) |
+| `--no-adminpanel` | – | Setup without admin page (as before) |
+| `--domain HOST` | – | Address of the admin page, e.g. `admin.meckminecraft.de` (required for the admin page) |
+| `--admin-email MAIL` | – | First admin; receives the first invitation |
+| `--mail-from MAIL` | – | Sender of login codes and invitations |
+| `--smtp-host HOST` | – | SMTP server |
+| `--smtp-port PORT` | `587` | SMTP port |
+| `--smtp-user USER` | `--mail-from` | SMTP login |
+| `--smtp-tls starttls\|ssl\|none` | `starttls` (`ssl` on port 465) | SMTP encryption |
+| `--smtp-password-file FILE` | – | Read the SMTP password from a file instead of the prompt (or set `$SMTP_PASSWORD`) |
+| `--proxy own\|caddy-proxy\|none` | `own` | HTTPS for the admin page — see [HTTPS](#https) |
+| `--admin-port PORT` | `8080` | Host port of the admin page with `--proxy none` |
+| `--mail-test` | – | Don't send real mail; show all mails in Mailpit — see [Mail test mode](#mail-test-mode) |
+
+Example output on a 16 GB machine:
 
 ```
 ╔══════════════════════════════════════════════════╗
-║         Memory configuration                     ║
+║         Hosting server configuration             ║
 ╠══════════════════════════════════════════════════╣
-║  Mode               : standalone                 ║
+║  Mode               : bungeecord                 ║
+║  Student servers    : 5                          ║
+║  Admin page         : admin.meckminecraft.de     ║
 ║  Total RAM          :  16384 MB                  ║
-║  OS reservation     :   2458 MB                  ║
-║  Available for MC   :  13926 MB  (5 servers)
-║  Per server (max)   :   2560 MB  (2560M)
-║  Per server (min)   :   1280 MB  (1280M)
+║  OS reservation     :   2457 MB                  ║
+║  BungeeCord         :    512 MB                  ║
+║  Admin page         :    384 MB                  ║
+║  Per server (max)   :   2048 MB  (2G   )         ║
+║  Per server (min)   :   1024 MB  (1G   )         ║
 ╚══════════════════════════════════════════════════╝
-
-✓ docker-compose.yml written from docker-compose.standalone.yml
-✓ Memory values updated  (MC_MEM_MIN=1280M  MC_MEM_MAX=2560M)
-✓ start-mc1.sh generated
-✓ start-mc2.sh generated
-...
 ```
 
-In BungeeCord mode the output also shows:
-```
-║  BungeeCord         :    512 MB  (fixed)
-```
-and generates `start-bungee.sh` and `start-lobby.sh` in addition to the mc scripts.
+Re-run `setup.sh` any time you move the setup to a different machine, change the mode or the number of servers. `configure-memory.sh` and `setup-keys.sh` still exist and simply run `setup.sh`.
 
-Re-run this script any time you move the setup to a different machine or change the mode.
+### Step 3 — SSH keys
 
-### Step 3 — Generate SSH keys
-
-This creates two ed25519 key pairs per server (one for FileZilla, one for PuTTY) and writes the public keys into `.env` so docker-compose can inject them into the containers.
-
-```bash
-chmod +x setup-keys.sh
-./setup-keys.sh
-```
+`setup.sh` creates two ed25519 key pairs per server (one for FileZilla, one for PuTTY) and writes the public keys into `.env` so docker-compose can inject them into the containers. The admin page uses the same keys (read-only).
 
 The keys are saved under `keys/`:
 
@@ -272,20 +299,18 @@ keys/
 │   ├── ctrl_key        ← give this file to student 1  (PuTTY)
 │   └── ctrl_key.pub
 ├── mc2/  ...
-├── mc3/  ...
-├── mc4/  ...
-└── mc5/  ...
+└── mcN/  ...
 ```
 
-> **Never commit the private key files.** They are excluded by `.gitignore`.
+> **The `keys/` folder is not part of the repository** (excluded by `.gitignore`) — keep it, together with `.env` and `secrets/`, only on the host and in your backups. Missing `.pub` files are recreated from the private keys by `setup.sh`.
 
 ### Step 4 — Build the image and start all servers
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-The **first run** takes 5–15 minutes because Docker builds the image (downloads packages, pulls GraalVM CE JDK, downloads the plugin). Every start after that is done in seconds.
+The **first run** takes 5–15 minutes because Docker builds the images (downloads packages, pulls GraalVM CE JDK, downloads all plugins of the [plugin catalog](#plugin-catalog)). Every start after that is done in seconds.
 
 > **Why GraalVM CE JDK?** The script4kids plugin runs student JavaScript via the GraalVM polyglot engine, which requires GraalVM's JDK — standard OpenJDK cannot initialize the JS engine. The container base is still Debian Trixie; GraalVM replaces only the JDK.
 
@@ -315,6 +340,8 @@ mc3   Up 3 minutes   0.0.0.0:25567->25565/tcp, 0.0.0.0:2223->22/tcp
 mc4   Up 3 minutes   0.0.0.0:25568->25565/tcp, 0.0.0.0:2224->22/tcp
 mc5   Up 3 minutes   0.0.0.0:25569->25565/tcp, 0.0.0.0:2225->22/tcp
 ```
+
+With the admin page there is also `adminpanel` and, depending on the options, `caddy` or `mailpit`.
 
 **BungeeCord mode** — bungee, lobby, and all five mc containers should show `running`:
 
@@ -378,6 +405,182 @@ All players connect to Minecraft on the same address. After joining they land in
 | 3 | `sftp://<HOST>:2223` user `mc-sftp` | `<HOST>:2223` user `mc-ctrl` | `<HOST>:25565` |
 | 4 | `sftp://<HOST>:2224` user `mc-sftp` | `<HOST>:2224` user `mc-ctrl` | `<HOST>:25565` |
 | 5 | `sftp://<HOST>:2225` user `mc-sftp` | `<HOST>:2225` user `mc-ctrl` | `<HOST>:25565` |
+
+With the admin page most students won't need the keys at all — hand them out only to students who want FileZilla/PuTTY.
+
+### Step 7 — First login on the admin page
+
+Send yourself the first invitation (to the address given with `--admin-email`):
+
+```bash
+docker compose exec adminpanel adminctl invite-admin
+```
+
+Open the link in the mail, set your password, then log in at `https://<domain>` with your e-mail address, password and the code that arrives by mail. On the overview page you assign servers to students — see [Assigning and releasing servers](#assigning-and-releasing-servers).
+
+---
+
+## Admin page
+
+A web page where students manage their own server and teachers manage all of them. It runs in the `adminpanel` container (Python/FastAPI, SQLite) and is set up by `setup.sh` (see [Step 2](#step-2--run-setupsh)).
+
+### What students and teachers can do
+
+**Students** see only the server assigned to them:
+
+| Area | Actions |
+|---|---|
+| Status | running / starting / being built / stopped, Minecraft version, players online; **start**, **stop**, **restart** |
+| Plugins | list of installed plugins, **remove**; **install** from the [plugin catalog](#plugin-catalog) (the build matching the server's Minecraft version is picked automatically); **upload** an own plugin `.jar` (max. 64 MB, must contain a `plugin.yml`; a plugin with the same name is replaced) |
+| Players | **add/remove** players on the whitelist, **give/take operator** rights — applied immediately via RCON, no restart needed |
+| Settings | **edit `server.properties`** in the browser, with a short explanation of the common keys; *Speichern und neu starten* saves and (re)starts the server in one step; *rückgängig* goes back to the previous version |
+
+Plugin and settings changes take effect after a restart (the page says so). In `server.properties` the keys the setup depends on — `server-port`, `online-mode`, `enable-rcon`, `rcon.port`, `rcon.password`, `broadcast-rcon-to-ops` — always keep their values; a file without any other setting (e.g. an interrupted upload) is refused, and the previous file is kept as `server.properties.bak`. The PrometheusExporter is shown as a required plugin and cannot be removed (it feeds the monitoring).
+
+**Teachers (admins)** additionally see:
+
+- an overview of all servers with status, version, player count and assigned student,
+- **assign** a free server to a student (name + e-mail; an invitation is sent),
+- **release** a server — the student loses access immediately; optionally **reset** it (see below),
+- all accounts: **send a new invitation** (the old password stops working — this is how "forgot password" works), **delete an account** (name and e-mail are removed, also from the action log), **add further admins**,
+- the last 40 actions (who did what on which server).
+
+Every admin can do everything a student can, on every server. Servers with `MC_SERVER_TYPE=custom` only offer start/stop/restart.
+
+### Login with e-mail code
+
+1. E-mail address + password.
+2. A 6-digit code is sent to that address — valid 10 minutes, at most 5 attempts, then the login starts over.
+
+- Sessions end after 2 hours without activity and after 12 hours at the latest; releasing a server or deleting/re-inviting an account ends the sessions of that user immediately.
+- Passwords are stored as Argon2 hashes; codes, invitation links and session ids only as SHA-256 hashes.
+- Failed logins are limited (10 per e-mail address / 30 per IP in 15 minutes), so are code mails (5 per account in 15 minutes).
+- "Forgot password" deliberately goes through the teacher (new invitation) — a reset link by mail would make access to the mailbox alone enough, and the second factor would be worthless.
+- Only name, e-mail address, assigned server and the password hash are stored, in `adminpanel_data` (not in the repository).
+
+### Assigning and releasing servers
+
+**Assign:** on the overview, *Vergeben …* next to a free server → name + e-mail → the student gets an invitation mail, sets their own password (link valid 7 days, single use) and can log in. An existing account without a server can be assigned again by its e-mail address.
+
+**Release:** *Freigeben …* next to an assigned server. With *Server zurücksetzen* checked, the server is also reset for the next student:
+
+- the server is stopped,
+- world and plugin folder are moved to `data/backup-<timestamp>/` on the server's volume (the three newest backups are kept, older ones are deleted),
+- whitelist and ops are emptied, the Minecraft version goes back to the default,
+- the default plugins are installed again on the next start; the server stays stopped until someone starts it.
+
+### HTTPS
+
+| `--proxy` | What happens |
+|---|---|
+| `own` (default) | A `caddy` container gets a Let's Encrypt certificate for `--domain`. Ports 80 and 443 must be reachable and the DNS name must point to the host. |
+| `caddy-proxy` | The admin page joins the external Docker network `proxy` of the shared [caddy-proxy](https://github.com/cndrbrbr/caddy-proxy) stack; add the block printed by `setup.sh` to that stack's Caddyfile and reload it. |
+| `none` | Plain HTTP on `--admin-port` (default 8080). Only for tests or a trusted LAN — passwords and codes travel unencrypted. |
+
+The page refuses cross-site form posts (origin check plus a CSRF token in every form), sets `HttpOnly`/`SameSite` cookies (`Secure` with HTTPS), forbids framing and runs without JavaScript.
+
+### Sending mail
+
+Codes and invitations are sent through an existing mailbox via SMTP. Sending through the provider keeps the mails out of spam folders (the domain's SPF record only allows the provider's servers).
+
+**netcup webhosting** (e.g. `tech@screenpaper.de`): use the mail server's own host name from the WCP, not the domain alias — the TLS certificate is issued for the host name, and the page verifies it. Only SMTP with SSL/TLS on port 465 is offered:
+
+```bash
+./setup.sh --mail-from tech@screenpaper.de --smtp-host mx2fed.netcup.net --smtp-port 465 --smtp-tls ssl
+```
+
+netcup blocks an IP address for a while after a few failed SMTP logins — if the server suddenly stops answering on all ports, wait before trying again.
+
+The SMTP password is **not** passed on the command line (it would end up in the shell history and the process list). `setup.sh` asks for it with a hidden prompt, or reads it from `--smtp-password-file` or `$SMTP_PASSWORD`, and stores it in `secrets/smtp_password` (mode 600, excluded from git), which is mounted read-only into the admin page.
+
+To change it later: `./setup.sh --smtp-password-file /path/to/file` (or delete `secrets/smtp_password` and re-run `./setup.sh` in a terminal), then `docker compose up -d adminpanel`.
+
+### Mail test mode
+
+With `--mail-test`, no real mail is sent: a `mailpit` container catches every mail and shows it at `http://<host>:8025`. Combined with `--proxy none` this is a complete local test setup:
+
+```bash
+./setup.sh --standalone --servers 2 --domain 192.168.1.49 --proxy none --mail-test --admin-email you@example.de
+docker compose up -d --build
+docker compose exec adminpanel adminctl invite-admin
+# open http://192.168.1.49:8025 (mails) and http://192.168.1.49:8080 (admin page)
+```
+
+`--domain` must be the address you open in the browser (the page refuses form posts from other origins). Switch back to real mail with `./setup.sh --no-mail-test --mail-from … --smtp-host …`.
+
+### adminctl
+
+Command line tasks inside the admin page container:
+
+```bash
+docker compose exec adminpanel adminctl invite-admin [email] [name]   # create admin (default: ADMIN_EMAIL) and send an invitation
+docker compose exec adminpanel adminctl list                          # list all accounts
+docker compose exec adminpanel adminctl forget-hostkey mc3            # accept a server's new SSH host key (see below)
+```
+
+`invite-admin` also prints the invitation link, in case the mail does not arrive.
+
+### How the admin page talks to the servers
+
+The admin page has **no access to the Docker socket**. It controls each server exactly like a student does: over SSH with the server's `ctrl_key` (user `mc-ctrl`, forced into `mc-dispatch.sh`) and `sftp_key` (user `mc-sftp`, chrooted to `/server`, used for plugin uploads). The keys are mounted read-only from `keys/` and copied to a private directory for the unprivileged `app` user at container start. A flaw in the admin page therefore gives no more access than a student already has with PuTTY and FileZilla.
+
+`mc-dispatch.sh` accepts these commands in addition to the PuTTY ones (JSON output where noted); every argument is validated again inside the container:
+
+| Command | Script | Purpose |
+|---|---|---|
+| `status` | `mc-status.sh` | state, version, players online (JSON) |
+| `restart` | `mc-restart.sh` | restart, or start if stopped |
+| `plugins`, `catalog` | `mc-plugins.sh` | installed / installable plugins (JSON) |
+| `plugin-install <id>`, `plugin-remove <file.jar>` | `mc-plugins.sh` | install from the catalog / remove |
+| `players` | `mc-players.sh` | whitelist and ops (JSON) |
+| `player-add`, `player-remove`, `op`, `deop <name>` | `mc-players.sh` | whitelist and operator rights |
+| `wipe` | `mc-wipe.sh` | reset for the next student (see above) |
+| `properties-get`, `properties-set`, `properties-restore` | `mc-properties.sh` | read / replace (content on stdin) / undo `server.properties` |
+
+Whitelist and operator changes take effect immediately through **RCON**: `entrypoint.sh` enables it on every server with a random password kept on the volume (`/server/.rcon-password`); port 25575 is not published. `announce.sh` uses the same path.
+
+The SSH host key of each server is pinned on first contact (trust on first use). If a server's volume is recreated, its host key changes and the admin page refuses the connection until you run `adminctl forget-hostkey <server>`.
+
+### Troubleshooting (admin page)
+
+| Problem | Solution |
+|---|---|
+| "Die Mail … konnte nicht verschickt werden" | Check `docker compose logs adminpanel`; usually a wrong SMTP password or port. Test with `adminctl invite-admin` (prints the error and the link). |
+| Code mail does not arrive | Spam folder; at most 5 codes per 15 minutes. |
+| Student forgot the password | Overview → account → *Neue Einladung schicken*. |
+| A server shows "nicht erreichbar" | The container is down or still starting — `docker compose ps`, `docker compose logs mcN`. |
+| "Der Schlüssel von mcN hat sich geändert" | The server's volume was recreated: `docker compose exec adminpanel adminctl forget-hostkey mcN`. |
+| "Forbidden (origin)" on every form | The page is opened under a different address than `--domain`; re-run `setup.sh --domain <address>`. |
+
+---
+
+## Plugin catalog
+
+`spigot/plugin-catalog.json` lists the plugins students can install from the admin page (or with `ssh … plugin-install <id>`). It is based on [plugin-list.md](plugin-list.md); every entry was load-tested on Spigot 26.3 and 1.21.11 (both on Java 25, as in the containers). On the admin page the catalog is grouped and scrolls in its own box; plugins marked *testing* in plugin-list.md show a *Testphase* badge.
+
+| Group | Plugins (id) | 1.21.11 | 26.3 |
+|---|---|:-:|:-:|
+| Unsere Plugins | `script4kids` (**default**), `cavecompass`, `geomaptools` | ✓ | ✓ |
+| Andere Minecraft-Versionen | `viaversion`, `viabackwards` (installs ViaVersion) | ✓ | ✓ |
+| Welten & Portale | `multiverse-core`, `multiverse-portals`, `multiverse-netherportals`, `multiverse-inventories`, `multiverse-signportals` (each installs Multiverse-Core), `voidgen`ᵗ, `advanced-portals`ᵗ | ✓ | ✓ |
+| Bauen & Schützen | `worldedit` (beta), `blocklocker` | ✓ | ✓ |
+| | `worldguard` (installs WorldEdit), `protectionstones`ᵗ (installs WorldGuard + WorldEdit) | – (needs 26.2+) | ✓ |
+| | `coreprotect`ᵗ | ✓ | – (refuses 26.3; `max: 26.2`) |
+| Spiele | `bedwars`ᵗ (Screaming BedWars) | ✓ | ✓ |
+| Technik | `protocollib` (development build), `orebfuscator` (installs ProtocolLib), `vault`ᵗ, `groupmanager`ᵗ | ✓ | ✓ |
+| | `prometheus` (PrometheusExporter) — **required**, cannot be removed | ✓ | ✓ |
+
+ᵗ *testing* in plugin-list.md — the plugin loads, but has seen little use on these versions.
+
+Not in the catalog: **Vivecraft Spigot Extension** 1.3.15-1 (crashes on Spigot 26.3 with `NoClassDefFoundError` — apparently Paper-only), **ZNPCs** and **LifeSteal SMP** (downloads only on SpigotMC, which can't be fetched automatically; LifeSteal also needs Helix), **Prometheus4Spigot** (no release yet). The "not recommended" plugins of plugin-list.md are left out as well.
+
+`protocollib` points to ProtocolLib's rolling `dev-build` release, so every image build takes the current development build (plugin-list.md recommends it for 26.3); all other entries are pinned to a version.
+
+Each plugin has one download per Minecraft version where needed (`variants`: the key is the lowest Minecraft version the jar is for; `*` = all versions). All jars are downloaded **when the image is built**, so the servers need no internet access to install plugins.
+
+Before every server start, `mc-plugins.sh sync` installs the default plugins on a fresh server, makes sure the required ones are present, and switches every installed catalog plugin to the jar for the server's current Minecraft version — so `version 1.21.11` / `version 26.3` keeps the plugins working. Plugins students remove stay removed.
+
+**To update a plugin or add one:** edit `spigot/plugin-catalog.json` (fields are explained at the top of the file; `max` limits a plugin to versions up to the given one, `category` and `status` control the admin page), then `docker compose build && docker compose up -d`. Servers pick up the new jar on their next start. Downloads must be direct links (GitHub releases, Modrinth CDN) — SpigotMC pages cannot be downloaded by the build.
 
 ---
 
@@ -545,7 +748,7 @@ docker compose build
 docker compose up -d
 ```
 
-The Spigot JAR is cached on the volume and not rebuilt unless you also set `FORCE_BUILD: "true"` in `docker-compose.yml`.
+The Spigot JAR is cached on the volume and not rebuilt unless you also set `FORCE_BUILD: "true"` in `docker-compose.yml`. The admin page is rebuilt by the same commands; its accounts are kept in the `adminpanel_data` volume.
 
 ### Force a Spigot version update
 
@@ -572,24 +775,26 @@ docker compose up -d --no-deps mc3
 
 The new key is active immediately on next container start. Give the student the new `keys/mc3/sftp_key` file.
 
-### Switch deployment mode
+### Switch deployment mode or number of servers
 
-Re-run `configure-memory.sh` with the new mode flag, then restart everything:
+Re-run `setup.sh` with the new options, then restart everything:
 
 ```bash
-./configure-memory.sh --standalone    # or --bungeecord
+./setup.sh --standalone          # or --bungeecord, and/or --servers N
 docker compose down
-docker compose up -d
+docker compose up -d --build
 ```
 
-World data is preserved in volumes. BungeeCord volumes (`bungee_data`, `lobby_data`) are created fresh if they did not exist.
+World data is preserved in volumes. BungeeCord volumes (`bungee_data`, `lobby_data`) are created fresh if they did not exist. BungeeCord picks up the new server list automatically unless `config.yml` on its volume was edited by hand (then it logs a warning and keeps your version).
+
+When you reduce the number of servers, the volumes of the removed servers are kept; `setup.sh` lists them so you can back them up and delete them with `docker volume rm`. Students assigned to a removed server should be released on the admin page first.
 
 ### Re-run memory configuration
 
 If you move the host to a different machine or add RAM:
 
 ```bash
-./configure-memory.sh --standalone    # or --bungeecord
+./setup.sh
 docker compose up -d
 ```
 
@@ -603,16 +808,26 @@ All values are set per service in `docker-compose.yml`. To change a setting for 
 |----------|--------|-------------|
 | `MC_PORT` | fixed `25565` | Internal Minecraft port (do not change) |
 | `MC_NAME` | `docker-compose.yml` | Container name used to locate backups (`mc1` … `mc5`, `lobby`) |
-| `MC_MEM_MIN` | `configure-memory.sh` | JVM minimum heap |
-| `MC_MEM_MAX` | `configure-memory.sh` | JVM maximum heap |
+| `MC_MEM_MIN` | `setup.sh` | JVM minimum heap |
+| `MC_MEM_MAX` | `setup.sh` | JVM maximum heap |
 | `MC_LEVELNAME` | `docker-compose.yml` | World folder name |
 | `MC_BUNGEECORD` | `docker-compose.yml` | `true` to enable BungeeCord IP forwarding in spigot.yml |
 | `MC_SERVER_TYPE` | `docker-compose.yml` | `spigot` (default) or `custom` — see [Server software](#server-software-spigot-or-a-students-own-custom) |
 | `SPIGOT_VERSION` | `docker-compose.yml` | Default Spigot version to build, `26.3` if unset (ignored for `custom`; can be overridden per-server by the student via `version` command) |
 | `FORCE_BUILD` | `docker-compose.yml` | `true` to force a Spigot rebuild on next start (ignored for `custom`) |
 | `BACKUP_URL` | `docker-compose.yml` | Base URL of the backup HTTP server — required for the `restore` command |
-| `SFTP_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the SFTP user |
-| `CTRL_PUBKEY` | `.env` (via `setup-keys.sh`) | Public key for the control user |
+| `SFTP_PUBKEY` | `.env` (via `setup.sh`) | Public key for the SFTP user |
+| `CTRL_PUBKEY` | `.env` (via `setup.sh`) | Public key for the control user |
+
+Admin page (`adminpanel` service, all written by `setup.sh`):
+
+| Variable | Description |
+|----------|-------------|
+| `PUBLIC_URL` | Address of the page, used in mail links and for the origin check |
+| `ADMIN_EMAIL` | First admin (`adminctl invite-admin` without arguments) |
+| `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_TLS` | Mail sending |
+| `SMTP_PASSWORD_FILE` | `/run/secrets/smtp_password` (from `secrets/smtp_password`) |
+| `MAIL_TEST` | `true` in mail test mode |
 
 ### Changing max players
 
@@ -751,9 +966,16 @@ MONITORING_IP="<IP_DES_MINECRAFTDASH_SERVERS>"   # z. B. 10.0.0.5
 
 # ── Prometheus Exporter (container-intern: 9940) ─────────────
 # Nur der Monitoring-Server darf die Metriken abrufen.
-# Gilt für alle mc1–mc5 gleichzeitig, da sie alle intern auf 9940 lauschen.
+# Gilt für alle Server gleichzeitig, da sie alle intern auf 9940 lauschen.
 iptables -A DOCKER-USER -p tcp --dport 9940 -s "$MONITORING_IP" -j ACCEPT
 iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
+
+# ── Adminseite ───────────────────────────────────────────────
+# --proxy own: 80 und 443 müssen öffentlich erreichbar sein (Let's Encrypt).
+# --proxy none: Port 8080 (bzw. --admin-port) nur aus dem Schulnetz erlauben:
+# iptables -A DOCKER-USER -p tcp --dport 8000 -s <WORKSHOP_NETZ>/24 -j ACCEPT
+# iptables -A DOCKER-USER -p tcp --dport 8000 -j DROP
+# (DOCKER-USER sieht den Container-Port 8000, nicht den Host-Port.)
 
 # ── Minecraft (container-intern: 25565) ──────────────────────
 # Öffentlich erreichbar — keine Einschränkung nötig.
@@ -788,11 +1010,15 @@ iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server` (their own server's root) and cannot navigate outside it or reach any other student's container. Within `/server` they have full read/write access to their own files — the one exception is the `/server` directory entry itself, which OpenSSH requires to stay `root:root` for the chroot to work |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
-| sudo scope | `mc-ctrl` may only `sudo /mc-start.sh`, `sudo /mc-stop.sh`, `sudo /mc-version.sh`, `sudo /mc-restore.sh`, `sudo /mc-adduser.sh` — sudo for anything else is blocked |
+| sudo scope | `mc-ctrl` may only sudo the control scripts (`mc-start/stop/version/restore/adduser/status/restart/plugins/players/wipe/properties.sh`), each of which validates its arguments — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
 | No forwarding | TCP, X11, and agent forwarding are disabled |
+| RCON | Enabled per server for the admin page, random password on the volume, port 25575 not published |
+| Admin page | Password + e-mail code; no Docker socket — controls servers only through the SSH paths above; runs as an unprivileged user; see [Admin page](#admin-page) |
 
-> For a production deployment, restrict the host firewall so Minecraft ports are only reachable from the workshop network, and consider putting a TLS reverse proxy (e.g. Caddy) in front of any web-facing services.
+> For a production deployment, restrict the host firewall so Minecraft ports are only reachable from the workshop network, and run the admin page only behind HTTPS (`--proxy own` or `caddy-proxy`).
+
+> A plugin uploaded by a student is arbitrary Java code running inside that student's container — the same as uploading it with FileZilla. Container isolation and the per-server RCON password keep it away from other servers.
 
 ---
 
@@ -800,47 +1026,59 @@ iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
 
 ```
 mchost/
-├── docker-compose.yml              # written by configure-memory.sh from a template
-├── docker-compose.standalone.yml   # template: 5 servers, direct MC ports 25565–25569
-├── docker-compose.bungeecord.yml   # template: bungee + lobby + 5 servers, single port
-├── configure-memory.sh             # detect RAM → write docker-compose.yml → generate start scripts
-├── setup-keys.sh                   # generate ed25519 key pairs + write .env
-├── announce.sh                     # broadcast a message to all players on all running servers
+├── setup.sh                        # first-time setup / re-configuration (mode, servers, admin page, RAM, keys)
+├── configure-memory.sh             # old name — runs setup.sh
+├── setup-keys.sh                   # old name — runs setup.sh
+├── docker-compose.yml              # generated by setup.sh
+├── servers.json / servers.txt      # generated: server list for the admin page / for announce.sh, backup.sh
+├── Caddyfile                       # generated with --proxy own
+├── secrets/smtp_password           # SMTP password (mode 600, excluded from git)
+├── announce.sh                     # broadcast a message to all players (via RCON)
 ├── backup.sh                       # create dated backups of server data volumes
 ├── backup-server/
 │   └── docker-compose.yml          # nginx:alpine that serves backup zips over HTTP (port 8080)
-├── start-mc1.sh                    # generated by configure-memory.sh ┐
-├── start-mc2.sh                    #                                  │
-├── start-mc3.sh                    #                                  ├ start/restart one server
-├── start-mc4.sh                    #                                  │
-├── start-mc5.sh                    #                                  ┘
-├── start-bungee.sh                 # generated in bungeecord mode — restart BungeeCord proxy
-├── start-lobby.sh                  # generated in bungeecord mode — restart lobby server
+├── start-mc1.sh … start-mcN.sh     # generated — start/restart one server
+├── start-bungee.sh, start-lobby.sh # generated in bungeecord mode
 ├── backups/                        # backup archives (excluded from git)
-│   ├── mc1/  cfg-DATE.zip, plugins-DATE.zip, worlds-DATE.zip, latest.txt
-│   └── ...
-├── .env                            # public SSH keys — written by setup-keys.sh
+├── .env                            # settings + public SSH keys — written by setup.sh
 ├── .env.example                    # empty template
-├── .gitignore                      # excludes private keys, .env, start-mc*.sh, backups/
+├── plugin-list.md                  # further plugins for Minecraft 26.3
+├── STUDENT.md                      # student guide (admin page, FileZilla, PuTTY)
 ├── LICENSE                         # Apache 2.0
-├── STUDENT.md                      # printable student guide (fill in IP + port before sharing)
+├── adminpanel/
+│   ├── Dockerfile                  # python:3.12-slim, unprivileged user
+│   ├── entrypoint.sh               # copies the SSH keys for the app user, drops root, starts uvicorn
+│   ├── adminctl                    # command line tool (invite-admin, list, forget-hostkey)
+│   ├── app/                        # FastAPI app: main.py (pages), security.py (login, codes, sessions),
+│   │                               #   servers.py (SSH/SFTP), mailer.py, db.py, templates/, static/
+│   └── tests/                      # pytest: login, permissions, CSRF, invitations, uploads
 ├── bungee/
 │   ├── Dockerfile                  # debian:trixie-slim + openjdk + BungeeCord.jar
-│   ├── entrypoint.sh               # copies config on first run, starts BungeeCord
-│   └── config.yml                  # online_mode, ip_forward, server list, listener
+│   ├── entrypoint.sh               # syncs config.yml to the volume, starts BungeeCord
+│   ├── config.base.yml             # template; the server list is filled in by setup.sh
+│   └── config.yml                  # generated by setup.sh (online_mode, ip_forward, servers, listener)
 └── spigot/
-    ├── Dockerfile                  # debian:trixie-slim, openssh-server, two SSH users
-    ├── entrypoint.sh               # generates SSH host keys → starts sshd → builds/runs MC per MC_SERVER_TYPE
+    ├── Dockerfile                  # debian:trixie-slim, GraalVM JDK, openssh-server, two SSH users, plugin catalog
+    ├── entrypoint.sh               # SSH host keys → sshd → RCON → plugin sync → builds/runs MC per MC_SERVER_TYPE
+    ├── plugin-catalog.json         # installable plugins (see Plugin catalog)
+    ├── fetch-catalog.sh            # downloads the catalog jars at image build time
     ├── sshd_config                 # ChrootDirectory for mc-sftp (full server root), ForceCommand for mc-ctrl
-    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher — routes start/stop/version/restore/adduser
-    ├── mc-start.sh                 # removes .stopped marker → entrypoint loop launches the server
-    ├── mc-stop.sh                  # creates .stopped marker + kills the process via /server/.pid → server stays down
-    ├── mc-version.sh               # writes requested version to /server/.version on the volume (spigot type only)
+    ├── mc-dispatch.sh              # SSH ForceCommand dispatcher (PuTTY and admin page commands)
+    ├── mc-start.sh / mc-stop.sh    # .stopped marker → entrypoint loop starts / pauses the server
+    ├── mc-restart.sh               # restart (or start)
+    ├── mc-status.sh                # state, version, players (JSON)
+    ├── mc-version.sh               # writes requested version to /server/.version (spigot type only)
     ├── mc-restore.sh               # fetches backup zips by date, extracts to volume
-    ├── mc-adduser.sh               # adds a Minecraft username to whitelist.json and ops.json
-    ├── watch_copy.sh               # inotify helper: keeps server.properties in sync with volume
+    ├── mc-plugins.sh               # list/catalog/install/remove plugins, version sync before each start
+    ├── mc-players.sh               # whitelist and operators (RCON while running)
+    ├── mc-adduser.sh               # PuTTY shortcut: whitelist + op via mc-players.sh
+    ├── mc-wipe.sh                  # reset for the next student
+    ├── mc-properties.sh            # read/replace/undo server.properties (protected keys kept)
+    ├── mc-rcon.py                  # minimal RCON client
+    ├── watch_copy.sh               # keeps server.properties in sync with volume
     ├── server.properties           # default server config (copied to volume on first run)
     ├── spigot.yml                  # bungeecord: false by default (set via MC_BUNGEECORD env var)
+    ├── minecraft-prometheus-exporter.jar  # PrometheusExporter 3.1.2 (catalog: file:)
     ├── eula.txt                    # eula=true
-    └── whitelist.json              # empty by default; students can edit via FileZilla
+    └── whitelist.json              # empty by default
 ```
