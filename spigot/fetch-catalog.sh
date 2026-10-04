@@ -30,6 +30,8 @@ while IFS=$'\t' read -r id key src; do
     # Every variant must contain exactly one jar with a plugin.yml
     jar=$(ls "$dir"/*.jar)
     # (some plugin.yml files start with a UTF-8 BOM and use CRLF line ends)
-    unzip -p "$jar" plugin.yml | sed '1s/^\xEF\xBB\xBF//' | tr -d '\r' | grep -q '^name:' \
+    # (grep reads to the end: grep -q would stop early and, with pipefail, the
+    # SIGPIPE of the commands before it would count as a failure)
+    unzip -p "$jar" plugin.yml | sed '1s/^\xEF\xBB\xBF//' | tr -d '\r' | grep '^name:' >/dev/null \
         || { echo "ERROR: $jar has no plugin.yml"; exit 1; }
 done
