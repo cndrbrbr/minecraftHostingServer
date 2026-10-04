@@ -433,8 +433,9 @@ A web page where students manage their own server and teachers manage all of the
 | Status | running / starting / being built / stopped, Minecraft version, players online; **start**, **stop**, **restart** |
 | Plugins | list of installed plugins, **remove**; **install** from the [plugin catalog](#plugin-catalog) (the build matching the server's Minecraft version is picked automatically); **upload** an own plugin `.jar` (max. 64 MB, must contain a `plugin.yml`; a plugin with the same name is replaced) |
 | Players | **add/remove** players on the whitelist, **give/take operator** rights — applied immediately via RCON, no restart needed |
+| Settings | **edit `server.properties`** in the browser, with a short explanation of the common keys; *Speichern und neu starten* saves and (re)starts the server in one step; *rückgängig* goes back to the previous version |
 
-Plugin changes take effect after a restart (the page says so). The PrometheusExporter is shown as a required plugin and cannot be removed (it feeds the monitoring).
+Plugin and settings changes take effect after a restart (the page says so). In `server.properties` the keys the setup depends on — `server-port`, `online-mode`, `enable-rcon`, `rcon.port`, `rcon.password`, `broadcast-rcon-to-ops` — always keep their values; a file without any other setting (e.g. an interrupted upload) is refused, and the previous file is kept as `server.properties.bak`. The PrometheusExporter is shown as a required plugin and cannot be removed (it feeds the monitoring).
 
 **Teachers (admins)** additionally see:
 
@@ -534,6 +535,7 @@ The admin page has **no access to the Docker socket**. It controls each server e
 | `players` | `mc-players.sh` | whitelist and ops (JSON) |
 | `player-add`, `player-remove`, `op`, `deop <name>` | `mc-players.sh` | whitelist and operator rights |
 | `wipe` | `mc-wipe.sh` | reset for the next student (see above) |
+| `properties-get`, `properties-set`, `properties-restore` | `mc-properties.sh` | read / replace (content on stdin) / undo `server.properties` |
 
 Whitelist and operator changes take effect immediately through **RCON**: `entrypoint.sh` enables it on every server with a random password kept on the volume (`/server/.rcon-password`); port 25575 is not published. `announce.sh` uses the same path.
 
@@ -999,7 +1001,7 @@ iptables -A DOCKER-USER -p tcp --dport 9940 -j DROP
 | Docker network (BungeeCord mode) | Backend servers are unreachable from outside the internal `workshop` network |
 | SSH chroot | `mc-sftp` is locked into `/server` (their own server's root) and cannot navigate outside it or reach any other student's container. Within `/server` they have full read/write access to their own files — the one exception is the `/server` directory entry itself, which OpenSSH requires to stay `root:root` for the chroot to work |
 | ForceCommand | `mc-ctrl` is unconditionally forced to run `/mc-dispatch.sh`; no shell access is possible |
-| sudo scope | `mc-ctrl` may only sudo the control scripts (`mc-start/stop/version/restore/adduser/status/restart/plugins/players/wipe.sh`), each of which validates its arguments — sudo for anything else is blocked |
+| sudo scope | `mc-ctrl` may only sudo the control scripts (`mc-start/stop/version/restore/adduser/status/restart/plugins/players/wipe/properties.sh`), each of which validates its arguments — sudo for anything else is blocked |
 | Key-only auth | Password login is disabled on all SSH users |
 | No forwarding | TCP, X11, and agent forwarding are disabled |
 | RCON | Enabled per server for the admin page, random password on the volume, port 25575 not published |
@@ -1062,6 +1064,7 @@ mchost/
     ├── mc-players.sh               # whitelist and operators (RCON while running)
     ├── mc-adduser.sh               # PuTTY shortcut: whitelist + op via mc-players.sh
     ├── mc-wipe.sh                  # reset for the next student
+    ├── mc-properties.sh            # read/replace/undo server.properties (protected keys kept)
     ├── mc-rcon.py                  # minimal RCON client
     ├── watch_copy.sh               # keeps server.properties in sync with volume
     ├── server.properties           # default server config (copied to volume on first run)

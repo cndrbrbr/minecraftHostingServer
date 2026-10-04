@@ -48,6 +48,7 @@ Checking two things — your password *and* your mailbox — means nobody can ge
 | **Starten / Stoppen / Neu starten** | Start, stop or restart your server. Starting takes about 30 seconds. |
 | **Plugins** | See the installed plugins, remove them, install new ones from the list with one click, or upload your own `.jar` file. **Restart the server afterwards** so the change takes effect. |
 | **Spieler** | Add the Minecraft names of the friends who may play on your server, and make them **operator** if they may use all commands. This works immediately. |
+| **Einstellungen** | Change your server's settings (`server.properties`): game mode, difficulty, PvP, the message in the server list, … Click **Speichern und neu starten** to apply them. Made a mistake? *Letzte gespeicherte Änderung rückgängig machen* brings back the previous version. |
 
 Some plugins worth knowing:
 - **ViaBackwards** — friends whose Minecraft is older than the server can still join.
