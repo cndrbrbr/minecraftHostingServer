@@ -243,7 +243,7 @@ Everything is given on the command line (missing required values are asked inter
            --domain admin.meckminecraft.de \
            --admin-email teacher@example.de \
            --mail-from tech@screenpaper.de \
-           --smtp-host mail.screenpaper.de --smtp-port 587
+           --smtp-host mx2fed.netcup.net --smtp-port 465 --smtp-tls ssl
 ```
 
 The SMTP password is then asked for with a hidden prompt (see [Sending mail](#sending-mail)).
@@ -480,7 +480,15 @@ The page refuses cross-site form posts (origin check plus a CSRF token in every 
 
 ### Sending mail
 
-Codes and invitations are sent through an existing mailbox via SMTP, e.g. `tech@screenpaper.de` on netcup (`mail.screenpaper.de`, port 587, STARTTLS). Sending through the provider keeps the mails out of spam folders (the domain's SPF record only allows the provider's servers).
+Codes and invitations are sent through an existing mailbox via SMTP. Sending through the provider keeps the mails out of spam folders (the domain's SPF record only allows the provider's servers).
+
+**netcup webhosting** (e.g. `tech@screenpaper.de`): use the mail server's own host name from the WCP, not the domain alias — the TLS certificate is issued for the host name, and the page verifies it. Only SMTP with SSL/TLS on port 465 is offered:
+
+```bash
+./setup.sh --mail-from tech@screenpaper.de --smtp-host mx2fed.netcup.net --smtp-port 465 --smtp-tls ssl
+```
+
+netcup blocks an IP address for a while after a few failed SMTP logins — if the server suddenly stops answering on all ports, wait before trying again.
 
 The SMTP password is **not** passed on the command line (it would end up in the shell history and the process list). `setup.sh` asks for it with a hidden prompt, or reads it from `--smtp-password-file` or `$SMTP_PASSWORD`, and stores it in `secrets/smtp_password` (mode 600, excluded from git), which is mounted read-only into the admin page.
 
