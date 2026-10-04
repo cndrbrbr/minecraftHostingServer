@@ -106,7 +106,10 @@ if [ "$SERVER_TYPE" != "custom" ]; then
         fi
     done
 
-    mkdir -p /server/bundler /server/logs /server/crash-reports
+    # /server itself stays root-owned (SFTP chroot), so every top-level folder
+    # the server writes to must exist beforehand — including libraries/, where
+    # Spigot downloads the "libraries:" of plugins such as GroupManager.
+    mkdir -p /server/bundler /server/logs /server/crash-reports /server/libraries
 else
     # ── Custom mode: /server itself can't be made writable (see below), so
     # pre-create the entry point plus the directory names most server
