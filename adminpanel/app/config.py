@@ -12,6 +12,7 @@ class Server:
     host: str
     public_ssh_port: int | None = None
     public_mc_port: int | None = None
+    admin_only: bool = False        # e.g. the lobby: never assigned to a student
 
 
 @dataclass
@@ -51,6 +52,7 @@ def load_servers(path: Path) -> tuple[str, dict[str, Server]]:
             host=s.get("host", s["name"]),
             public_ssh_port=s.get("public_ssh_port"),
             public_mc_port=s.get("public_mc_port"),
+            admin_only=s.get("admin_only") is True,
         )
     return data.get("mode", "standalone"), servers
 

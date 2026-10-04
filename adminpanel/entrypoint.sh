@@ -4,7 +4,7 @@
 # user, then drops root.
 set -e
 rm -rf /run/keys && mkdir -p /run/keys
-for dir in /keys/mc*; do
+for dir in /keys/*; do    # mc1…mcN, and lobby in BungeeCord mode
     [ -d "$dir" ] || continue
     name=$(basename "$dir")
     mkdir -p "/run/keys/$name"

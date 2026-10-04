@@ -23,6 +23,7 @@
     {% endif %}
     <dt>Verbinden</dt>
     <dd>{% if server.public_mc_port %}Minecraft: <code>&lt;Serveradresse&gt;:{{ server.public_mc_port }}</code>
+        {% elif server.admin_only %}Spieler landen hier, wenn sie sich mit dem Server verbinden
         {% else %}Über die Lobby, dann <code>/server {{ server.name }}</code>{% endif %}</dd>
   </dl>
 

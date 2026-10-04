@@ -17,6 +17,7 @@
         <td>{{ r.status.version or '–' }}</td>
         <td>{{ r.status.players | length if r.status.players is defined else '–' }}</td>
         <td>{% if r.owner %}{{ r.owner.name }}<br><span class="hint">{{ r.owner.email }}{% if not r.owner.active %} · Einladung offen{% endif %}</span>
+            {% elif r.server.admin_only %}<span class="hint">nur Admins</span>
             {% else %}<span class="hint">frei</span>{% endif %}</td>
         <td class="right">
           {% if r.owner %}
@@ -32,7 +33,7 @@
               <button class="danger small">Freigeben</button>
             </form>
           </details>
-          {% else %}
+          {% elif not r.server.admin_only %}
           <details class="confirm">
             <summary>Vergeben …</summary>
             <form method="post" action="/admin/assign" class="stack">

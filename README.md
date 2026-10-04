@@ -299,8 +299,11 @@ keys/
 │   ├── ctrl_key        ← give this file to student 1  (PuTTY)
 │   └── ctrl_key.pub
 ├── mc2/  ...
-└── mcN/  ...
+├── mcN/  ...
+└── lobby/              ← BungeeCord mode only: for the admin page — never give these out
 ```
+
+In BungeeCord mode the lobby gets a key pair too, so the admin page can manage it. The lobby has no public SSH port, so these keys only work from inside the `workshop` network (i.e. from the admin page).
 
 > **The `keys/` folder is not part of the repository** (excluded by `.gitignore`) — keep it, together with `.env` and `secrets/`, only on the host and in your backups. Missing `.pub` files are recreated from the private keys by `setup.sh`.
 
@@ -443,7 +446,8 @@ Plugin and settings changes take effect after a restart (the page says so). In `
 - **assign** a free server to a student (name + e-mail; an invitation is sent),
 - **release** a server — the student loses access immediately; optionally **reset** it (see below),
 - all accounts: **send a new invitation** (the old password stops working — this is how "forgot password" works), **delete an account** (name and e-mail are removed, also from the action log), **add further admins**,
-- the last 40 actions (who did what on which server).
+- the last 40 actions (who did what on which server),
+- in BungeeCord mode the **lobby** as the first server in the list, marked *nur Admins*: it can be managed like every other server but never assigned to a student (see [Lobby](#lobby)).
 
 Every admin can do everything a student can, on every server. Servers with `MC_SERVER_TYPE=custom` only offer start/stop/restart.
 
@@ -461,6 +465,8 @@ Every admin can do everything a student can, on every server. Servers with `MC_S
 ### Assigning and releasing servers
 
 **Assign:** on the overview, *Vergeben …* next to a free server → name + e-mail → the student gets an invitation mail, sets their own password (link valid 7 days, single use) and can log in. An existing account without a server can be assigned again by its e-mail address.
+
+The lobby has no *Vergeben …* — it is admin-only (`"admin_only": true` in `servers.json`). Even if the database were edited by hand, a student never gets access to an admin-only server.
 
 **Release:** *Freigeben …* next to an assigned server. With *Server zurücksetzen* checked, the server is also reset for the next student:
 
@@ -952,7 +958,7 @@ Backend servers are only reachable from within the `workshop` Docker bridge netw
 
 ### Lobby
 
-The lobby server uses the same Spigot image as the student servers. It has no SSH keys set (`SFTP_PUBKEY` and `CTRL_PUBKEY` are empty) — it is admin-managed only. World data is stored in the `lobby_data` volume.
+The lobby server uses the same Spigot image as the student servers. It is admin-managed only: `setup.sh` gives it its own key pair (`keys/lobby/`, `LOBBY_SFTP_PUBKEY` / `LOBBY_CTRL_PUBKEY` in `.env`), but publishes **no SSH port** for it — only the admin page reaches it, over the `workshop` network. On the admin page it appears as *nur Admins*: admins can start/stop it, manage its plugins, players and `server.properties`, but it cannot be assigned to a student or reset. World data is stored in the `lobby_data` volume.
 
 ---
 

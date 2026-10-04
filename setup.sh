@@ -213,24 +213,33 @@ echo "╚═══════════════════════�
 echo ""
 
 # ── SSH keys ──────────────────────────────────────────────────
-mkdir -p keys
-for i in $(seq 1 "$SERVERS"); do
-    dir="keys/mc${i}"
+# make_keys <name> <ENV_PREFIX>: two ed25519 key pairs per server (existing
+# keys are kept), public keys go into .env for docker-compose.
+make_keys() {
+    local name=$1 prefix=$2 dir="keys/$1"
     mkdir -p "$dir"
     for k in sftp ctrl; do
         if [ ! -f "$dir/${k}_key" ]; then
             rm -f "$dir/${k}_key.pub"
-            ssh-keygen -q -t ed25519 -f "$dir/${k}_key" -N '' -C "mc${i}-${k}"
-            echo "✓ ${k} key for mc${i} generated"
+            ssh-keygen -q -t ed25519 -f "$dir/${k}_key" -N '' -C "${name}-${k}"
+            echo "✓ ${k} key for ${name} generated"
         elif [ ! -f "$dir/${k}_key.pub" ]; then
             # keys/ is not in git: recreate a missing public key from the private one
             ssh-keygen -y -f "$dir/${k}_key" > "$dir/${k}_key.pub"
         fi
         chmod 600 "$dir/${k}_key"
     done
-    env_set "MC${i}_SFTP_PUBKEY" "$(cat "$dir/sftp_key.pub")"
-    env_set "MC${i}_CTRL_PUBKEY" "$(cat "$dir/ctrl_key.pub")"
+    env_set "${prefix}_SFTP_PUBKEY" "$(cat "$dir/sftp_key.pub")"
+    env_set "${prefix}_CTRL_PUBKEY" "$(cat "$dir/ctrl_key.pub")"
+}
+
+mkdir -p keys
+for i in $(seq 1 "$SERVERS"); do
+    make_keys "mc${i}" "MC${i}"
 done
+# The lobby's keys are for the admin page only: the lobby has no public SSH
+# port, so they work only from inside the workshop network. Never hand them out.
+[ "$MODE" = bungeecord ] && make_keys lobby LOBBY
 
 # ── Store settings ────────────────────────────────────────────
 env_set SETUP_MODE "$MODE"
@@ -256,6 +265,8 @@ fi
     echo "{"
     echo "  \"mode\": \"$MODE\","
     echo "  \"servers\": ["
+    # The lobby is listed for the admin page but can never be assigned to a student
+    [ "$MODE" = bungeecord ] && echo "    {\"name\": \"lobby\", \"host\": \"lobby\", \"public_ssh_port\": null, \"public_mc_port\": null, \"admin_only\": true},"
     for i in $(seq 1 "$SERVERS"); do
         mc_port=null; [ "$MODE" = standalone ] && mc_port=$(( 25564 + i ))
         sep=","; [ "$i" -eq "$SERVERS" ] && sep=""
@@ -331,7 +342,7 @@ YAML
     networks:
       - workshop
 
-  # ── Lobby: players land here first (admin-managed, no SSH) ──
+  # ── Lobby: players land here first (admin-managed: SSH only from the admin page) ──
   lobby:
     build: ./spigot
     container_name: lobby
@@ -349,8 +360,8 @@ YAML
       MC_MEM_MAX: "${MEM_MAX}"
       FORCE_BUILD: "false"
       MC_SERVER_TYPE: "spigot"
-      SFTP_PUBKEY: ""
-      CTRL_PUBKEY: ""
+      SFTP_PUBKEY: "\${LOBBY_SFTP_PUBKEY}"
+      CTRL_PUBKEY: "\${LOBBY_CTRL_PUBKEY}"
     volumes:
       - lobby_data:/server
     networks:

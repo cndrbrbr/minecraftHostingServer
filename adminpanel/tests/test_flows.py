@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import security as sec
-from app.config import Server, Settings
+from app.config import Server, Settings, load_servers
 from app.db import DB
 from app.main import create_app
 from app.servers import Result, ServerError
@@ -100,6 +100,7 @@ ORIGIN = "http://testserver"
 @pytest.fixture
 def env(tmp_path):
     settings = Settings(public_url=ORIGIN, data_dir=tmp_path, servers={
+        "lobby": Server("lobby", "lobby", admin_only=True),
         "mc1": Server("mc1", "mc1", 2221, 25565), "mc2": Server("mc2", "mc2", 2222, 25566)})
     db = DB(tmp_path / "t.db")
     mailer, control = FakeMailer(), FakeControl()
@@ -388,3 +389,50 @@ def test_jarcheck_handles_bom_and_crlf():
     with zipfile.ZipFile(buf, "w") as z:
         z.writestr("plugin.yml", "﻿name: GroupManager\r\nversion: 3.2 (Phoenix)\r\nmain: x.Y\r\n".encode("utf-8"))
     assert inspect_jar(buf.getvalue()) == ("GroupManager", "3.2 (Phoenix)", "GroupManager-3.2Phoenix.jar")
+
+
+def test_admin_only_server_cannot_be_assigned_or_wiped(env):
+    _, db, mailer, control, app = env
+    make_user(db, "teacher@school.de", "Teacher", "admin")
+    t = client(app)
+    login(t, mailer, "teacher@school.de")
+    page = t.get("/admin").text
+    assert "nur Admins" in page
+    assert 'name="server" value="lobby"' not in page      # no assign/release form for the lobby
+    token = csrf_of(page)
+    t.post("/admin/assign", data={"server": "lobby", "name": "Kid", "email": "kid@school.de", "csrf": token})
+    assert db.one("SELECT id FROM users WHERE email = ?", "kid@school.de") is None
+    assert mailer.sent == [("code", "teacher@school.de", mailer.last("code", "teacher@school.de"))]
+    t.post("/admin/release", data={"server": "lobby", "wipe": "yes", "csrf": token})
+    assert ("lobby", "wipe") not in control.calls
+    # The admin manages the lobby like any other server
+    assert t.get("/server/lobby").status_code == 200
+    token = csrf_of(t.get("/server/lobby").text)
+    t.post("/server/lobby/power", data={"action": "restart", "csrf": token})
+    assert ("lobby", "restart") in control.calls
+
+
+def test_student_never_reaches_admin_only_server(env):
+    _, db, mailer, control, app = env
+    # Even if the database says so (e.g. set by hand), a student gets no access
+    make_user(db, "kid@school.de", "Kid", "student", "lobby")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    assert c.get("/").status_code == 200                  # "no server yet" page, no redirect
+    assert c.get("/server/lobby").status_code == 403
+    assert c.get("/server/lobby/properties").status_code == 403
+    # valid token of this session, so the 403 comes from the access check
+    token = db.one("SELECT s.csrf FROM sessions s JOIN users u ON u.id = s.user_id "
+                   "WHERE u.email = ? AND s.stage = 'full'", "kid@school.de")["csrf"]
+    assert c.post("/server/lobby/power", data={"action": "stop", "csrf": token}).status_code == 403
+    assert control.calls == []
+
+
+def test_servers_json_admin_only(tmp_path):
+    f = tmp_path / "servers.json"
+    f.write_text('{"mode": "bungeecord", "servers": ['
+                 '{"name": "lobby", "host": "lobby", "public_ssh_port": null, "public_mc_port": null, "admin_only": true},'
+                 '{"name": "mc1", "host": "mc1", "public_ssh_port": 2221, "public_mc_port": null}]}')
+    mode, servers = load_servers(f)
+    assert mode == "bungeecord" and list(servers) == ["lobby", "mc1"]
+    assert servers["lobby"].admin_only and not servers["mc1"].admin_only

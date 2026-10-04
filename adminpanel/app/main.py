@@ -86,8 +86,9 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
         return s
 
     def can_access(session, server_name: str) -> bool:
-        return server_name in settings.servers and (
-            session["role"] == "admin" or session["server"] == server_name)
+        server = settings.servers.get(server_name)
+        return server is not None and (
+            session["role"] == "admin" or (session["server"] == server_name and not server.admin_only))
 
     def actor(session) -> str:
         return f"{session['name']} <{session['email']}>"
@@ -233,7 +234,7 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
             return redirect("/login")
         if s["role"] == "admin":
             return redirect("/admin")
-        if s["server"] and s["server"] in settings.servers:
+        if can_access(s, s["server"] or ""):
             return redirect(f"/server/{s['server']}")
         return page(request, "message.html", s, title="Noch kein Server",
                     text="Dir ist im Moment kein Minecraft-Server zugeordnet. "
@@ -465,6 +466,8 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
         name, email = name.strip()[:80], email.strip().lower()
         if server not in settings.servers:
             return flash_redirect(s, "/admin", "Unbekannter Server.", "err")
+        if settings.servers[server].admin_only:
+            return flash_redirect(s, "/admin", f"{server} ist nur für Admins und kann nicht vergeben werden.", "err")
         if not name or not EMAIL_RE.match(email):
             return flash_redirect(s, "/admin", "Bitte Name und eine gültige Mailadresse eingeben.", "err")
         if db.one("SELECT id FROM users WHERE server = ?", server):
@@ -500,6 +503,8 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
             return Response("Forbidden", status_code=403)
         if server not in settings.servers:
             return flash_redirect(s, "/admin", "Unbekannter Server.", "err")
+        if settings.servers[server].admin_only and wipe == "yes":
+            return flash_redirect(s, "/admin", f"{server} ist nur für Admins und wird nicht zurückgesetzt.", "err")
         user = db.one("SELECT * FROM users WHERE server = ?", server)
         if user:
             db.run("UPDATE users SET server = NULL WHERE id = ?", user["id"])
