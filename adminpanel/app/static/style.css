@@ -46,6 +46,7 @@ h3 { font-size: 1rem; margin: 22px 0 8px; }
 .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
 label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .95rem; }
 label.check { flex-direction: row; align-items: flex-start; gap: 8px; font-weight: 400; }
+input[type=checkbox] { width: 18px; height: 18px; padding: 0; margin: 2px 0 0; flex: none; accent-color: var(--danger); }
 input { font: inherit; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
   background: var(--bg); color: var(--text); min-width: 0; }
 input[type=file] { padding: 6px; }
@@ -89,4 +90,4 @@ textarea.editor { font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas,
   background: var(--bg); font-size: .9rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .catalog .item { background: var(--card); }
 .catalog .item .item-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
-.catalog + .catalog-group { margin-top: 10px; }
+.catalog-section + .catalog-section { margin-top: 10px; }

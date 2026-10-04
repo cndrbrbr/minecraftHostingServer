@@ -105,7 +105,7 @@
         <td class="nowrap">{{ a.ts | datetime }}</td>
         <td>{{ a.actor }}</td>
         <td>{{ a.server or '' }}</td>
-        <td>{{ a.action }}{% if a.detail %} <span class="hint">{{ a.detail }}</span>{% endif %}</td>
+        <td>{{ audit_labels.get(a.action, a.action) }}{% if a.detail %} <span class="hint">{{ a.detail }}</span>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

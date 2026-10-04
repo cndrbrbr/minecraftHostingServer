@@ -31,6 +31,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 COOKIE = "mcadmin"
 MAX_PROPERTIES = 64 * 1024
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+AUDIT_LABELS = {
+    "login": "angemeldet", "password set": "Passwort festgelegt",
+    "assign": "Server vergeben", "release": "Server freigegeben", "release + wipe": "freigegeben und zurückgesetzt",
+    "add admin": "Admin hinzugefügt", "invite admin": "Admin eingeladen", "reinvite": "neu eingeladen",
+    "delete user": "Zugang gelöscht", "start": "gestartet", "stop": "gestoppt", "restart": "neu gestartet",
+    "plugin install": "Plugin installiert", "plugin remove": "Plugin entfernt", "plugin upload": "Plugin hochgeladen",
+    "player-add": "Spieler hinzugefügt", "player-remove": "Spieler entfernt",
+    "op": "Operator gegeben", "deop": "Operator weggenommen",
+    "properties": "Einstellungen geändert", "properties restore": "Einstellungen zurückgeholt",
+}
 STATE_LABELS = {
     "running": ("läuft", "ok"),
     "starting": ("startet …", "busy"),
@@ -53,6 +63,7 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
     app.mount("/static", StaticFiles(directory=f"{base}/static"), name="static")
     templates = Jinja2Templates(directory=f"{base}/templates")
     templates.env.globals["state_labels"] = STATE_LABELS
+    templates.env.globals["audit_labels"] = AUDIT_LABELS
     tz = ZoneInfo("Europe/Berlin")
     templates.env.filters["datetime"] = lambda ts: datetime.fromtimestamp(ts, tz).strftime("%d.%m. %H:%M")
 

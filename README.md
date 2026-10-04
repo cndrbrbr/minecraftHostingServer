@@ -425,7 +425,7 @@ Open the link in the mail, set your password, then log in at `https://<domain>` 
 
 ## Admin page
 
-A web page where students manage their own server and teachers manage all of them. It runs in the `adminpanel` container (Python/FastAPI, SQLite) and is set up by `setup.sh` (see [Step 2](#step-2--run-setupsh)).
+A web page where students manage their own server and teachers manage all of them. **How to use it (German, with screenshots): [admin-handbuch.md](admin-handbuch.md).** It runs in the `adminpanel` container (Python/FastAPI, SQLite) and is set up by `setup.sh` (see [Step 2](#step-2--run-setupsh)).
 
 ### What students and teachers can do
 

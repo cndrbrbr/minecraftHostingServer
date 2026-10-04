@@ -78,6 +78,7 @@
     {% set order = ['Unsere Plugins', 'Andere Minecraft-Versionen', 'Welten & Portale', 'Bauen & Schützen', 'Spiele', 'Technik'] %}
     {% set cats = offer | map(attribute='category') | unique | list %}
     {% for cat in (order | select('in', cats) | list) + (cats | reject('in', order) | list) %}
+    <div class="catalog-section">
     <h4 class="catalog-group">{{ cat }}</h4>
     <div class="catalog">
       {% for c in offer if c.category == cat %}
@@ -95,6 +96,7 @@
         {% else %}<p class="hint">Nicht für Minecraft {{ catalog.version }} verfügbar{% if c.max %} (läuft nur bis {{ c.max }}){% endif %}.</p>{% endif %}
       </div>
       {% endfor %}
+    </div>
     </div>
     {% endfor %}
   </div>

@@ -29,6 +29,8 @@ Only for FileZilla and PuTTY — your two key files:
 
 ## Part 0 — The admin page: the easy way
 
+A detailed guide in German with screenshots: [admin-handbuch.md](admin-handbuch.md#teil-2--den-eigenen-server-bedienen).
+
 ### First time: set your password
 
 1. You get an e-mail **"Einladung zur Minecraft-Adminseite"**. Click the link in it (it works for 7 days and only once).
