@@ -380,3 +380,11 @@ def test_catalog_groups_and_badges(env):
     assert "Testphase" in html
     assert "läuft nur bis 26.2" in html
     assert "Installiert dazu: worldedit" in html
+
+
+def test_jarcheck_handles_bom_and_crlf():
+    from app.jarcheck import inspect_jar
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("plugin.yml", "﻿name: GroupManager\r\nversion: 3.2 (Phoenix)\r\nmain: x.Y\r\n".encode("utf-8"))
+    assert inspect_jar(buf.getvalue()) == ("GroupManager", "3.2 (Phoenix)", "GroupManager-3.2Phoenix.jar")

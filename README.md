@@ -556,22 +556,31 @@ The SSH host key of each server is pinned on first contact (trust on first use).
 
 ## Plugin catalog
 
-`spigot/plugin-catalog.json` lists the plugins students can install from the admin page (or with `ssh … plugin-install <id>`):
+`spigot/plugin-catalog.json` lists the plugins students can install from the admin page (or with `ssh … plugin-install <id>`). It is based on [plugin-list.md](plugin-list.md); every entry was load-tested on Spigot 26.3 and 1.21.11 (both on Java 25, as in the containers). On the admin page the catalog is grouped and scrolls in its own box; plugins marked *testing* in plugin-list.md show a *Testphase* badge.
 
-| id | Plugin | Notes |
-|---|---|---|
-| `script4kids` | [script4kids](https://github.com/cndrbrbr/script4kids) | JavaScript in Minecraft; **default** on new servers |
-| `cavecompass` | [CaveCompass](https://github.com/cndrbrbr/cavecompass) | |
-| `geomaptools` | [geomaptools](https://github.com/cndrbrbr/geomaptools) | |
-| `viaversion` | [ViaVersion](https://github.com/ViaVersion/ViaVersion) | lets players with a **newer** Minecraft join |
-| `viabackwards` | [ViaBackwards](https://github.com/ViaVersion/ViaBackwards) | lets players with an **older** Minecraft join; installs ViaVersion too |
-| `prometheus` | [PrometheusExporter](https://github.com/sladkoff/minecraft-prometheus-exporter) | **required** (monitoring), cannot be removed |
+| Group | Plugins (id) | 1.21.11 | 26.3 |
+|---|---|:-:|:-:|
+| Unsere Plugins | `script4kids` (**default**), `cavecompass`, `geomaptools` | ✓ | ✓ |
+| Andere Minecraft-Versionen | `viaversion`, `viabackwards` (installs ViaVersion) | ✓ | ✓ |
+| Welten & Portale | `multiverse-core`, `multiverse-portals`, `multiverse-netherportals`, `multiverse-inventories`, `multiverse-signportals` (each installs Multiverse-Core), `voidgen`ᵗ, `advanced-portals`ᵗ | ✓ | ✓ |
+| Bauen & Schützen | `worldedit` (beta), `blocklocker` | ✓ | ✓ |
+| | `worldguard` (installs WorldEdit), `protectionstones`ᵗ (installs WorldGuard + WorldEdit) | – (needs 26.2+) | ✓ |
+| | `coreprotect`ᵗ | ✓ | – (refuses 26.3; `max: 26.2`) |
+| Spiele | `bedwars`ᵗ (Screaming BedWars) | ✓ | ✓ |
+| Technik | `protocollib` (development build), `orebfuscator` (installs ProtocolLib), `vault`ᵗ, `groupmanager`ᵗ | ✓ | ✓ |
+| | `prometheus` (PrometheusExporter) — **required**, cannot be removed | ✓ | ✓ |
+
+ᵗ *testing* in plugin-list.md — the plugin loads, but has seen little use on these versions.
+
+Not in the catalog: **Vivecraft Spigot Extension** 1.3.15-1 (crashes on Spigot 26.3 with `NoClassDefFoundError` — apparently Paper-only), **ZNPCs** and **LifeSteal SMP** (downloads only on SpigotMC, which can't be fetched automatically; LifeSteal also needs Helix), **Prometheus4Spigot** (no release yet). The "not recommended" plugins of plugin-list.md are left out as well.
+
+`protocollib` points to ProtocolLib's rolling `dev-build` release, so every image build takes the current development build (plugin-list.md recommends it for 26.3); all other entries are pinned to a version.
 
 Each plugin has one download per Minecraft version where needed (`variants`: the key is the lowest Minecraft version the jar is for; `*` = all versions). All jars are downloaded **when the image is built**, so the servers need no internet access to install plugins.
 
 Before every server start, `mc-plugins.sh sync` installs the default plugins on a fresh server, makes sure the required ones are present, and switches every installed catalog plugin to the jar for the server's current Minecraft version — so `version 1.21.11` / `version 26.3` keeps the plugins working. Plugins students remove stay removed.
 
-**To update a plugin or add one:** edit `spigot/plugin-catalog.json`, then `docker compose build && docker compose up -d`. Servers pick up the new jar on their next start. See [plugin-list.md](plugin-list.md) for further plugins that work with Minecraft 26.3.
+**To update a plugin or add one:** edit `spigot/plugin-catalog.json` (fields are explained at the top of the file; `max` limits a plugin to versions up to the given one, `category` and `status` control the admin page), then `docker compose build && docker compose up -d`. Servers pick up the new jar on their next start. Downloads must be direct links (GitHub releases, Modrinth CDN) — SpigotMC pages cannot be downloaded by the build.
 
 ---
 

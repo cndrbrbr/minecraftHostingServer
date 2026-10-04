@@ -29,5 +29,7 @@ while IFS=$'\t' read -r id key src; do
     esac
     # Every variant must contain exactly one jar with a plugin.yml
     jar=$(ls "$dir"/*.jar)
-    unzip -p "$jar" plugin.yml | grep -q '^name:' || { echo "ERROR: $jar has no plugin.yml"; exit 1; }
+    # (some plugin.yml files start with a UTF-8 BOM and use CRLF line ends)
+    unzip -p "$jar" plugin.yml | sed '1s/^\xEF\xBB\xBF//' | tr -d '\r' | grep -q '^name:' \
+        || { echo "ERROR: $jar has no plugin.yml"; exit 1; }
 done

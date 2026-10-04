@@ -80,7 +80,8 @@ variant_jar() {  # path of the jar for <id> <variant>
 }
 
 plugin_yml_field() {  # <jar> <field>
-    unzip -p "$1" plugin.yml 2>/dev/null | grep -m1 "^$2:" | sed -E "s/^$2:[[:space:]]*//; s/^['\"]//; s/['\"][[:space:]]*\$//; s/[[:space:]]+\$//"
+    # strip a UTF-8 BOM and CRLF line ends (both occur in real plugins)
+    unzip -p "$1" plugin.yml 2>/dev/null | sed '1s/^\xEF\xBB\xBF//' | tr -d '\r' | grep -m1 "^$2:" | sed -E "s/^$2:[[:space:]]*//; s/^['\"]//; s/['\"][[:space:]]*\$//; s/[[:space:]]+\$//"
 }
 
 # Install catalog plugin <id> for <version>; prints what it did.

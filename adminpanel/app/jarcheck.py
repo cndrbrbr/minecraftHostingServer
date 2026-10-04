@@ -28,7 +28,8 @@ def inspect_jar(data: bytes) -> tuple[str, str, str]:
         raise JarError("Das ist keine gültige .jar-Datei.") from exc
     with zf:
         try:
-            yml = zf.read("plugin.yml").decode("utf-8", "replace")
+            # utf-8-sig drops a BOM; CRLF line ends are handled by the regex
+            yml = zf.read("plugin.yml").decode("utf-8-sig", "replace").replace("\r", "")
         except KeyError as exc:
             raise JarError("In der Datei fehlt die plugin.yml – das ist kein Spigot-Plugin.") from exc
     name = _field(yml, "name")
