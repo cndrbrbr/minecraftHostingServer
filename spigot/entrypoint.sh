@@ -167,11 +167,42 @@ fi
 # A SIGTERM from mc-stop.sh causes a non-zero exit → paused (not restarted)
 # when /server/.stopped is present. mc-start.sh removes .stopped to resume.
 cd /server
+
+# docker stop sends SIGTERM to PID 1 (this script). Bash as PID 1 ignores it
+# unless trapped, so without this handler Docker kills the container after the
+# grace period and Minecraft never saves the world. Forward the signal to the
+# server (Spigot and Forge save on SIGTERM) and let the loop below exit once it
+# is down. A stale marker from an earlier run must not stop the next start.
+rm -f /server/.shutdown
+on_term() {
+    touch /server/.shutdown
+    if [ -f /server/.pid ]; then
+        echo "==> SIGTERM received — stopping the Minecraft server (saving the world)..."
+        kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
+    else
+        echo "==> SIGTERM received — no server running, exiting."
+        exit 0
+    fi
+}
+trap on_term TERM INT
+
+# Run the server as mc-sftp. setpriv execs the command directly (unlike
+# runuser, which stays in between and SIGKILLs its child 2 s after a SIGTERM),
+# so .pid is the server process itself and it has all the time it needs to
+# save on stop/restart.
+# Only call it in the background ("as_student cmd &"): it execs, so the
+# background subshell becomes the server and $! is its PID.
+as_student() {
+    exec env HOME=/home/mc-sftp USER=mc-sftp LOGNAME=mc-sftp \
+        setpriv --reuid=mc-sftp --regid=mc-sftp --init-groups -- "$@"
+}
+
 echo "==> Minecraft server loop starting (type: ${SERVER_TYPE})..."
 
 while true; do
     # Wait while the student has manually stopped the server
     while [ -f /server/.stopped ]; do
+        [ -f /server/.shutdown ] && { echo "==> Shutdown requested — exiting."; exit 0; }
         sleep 2
     done
 
@@ -184,7 +215,7 @@ while true; do
         fi
         chmod +x /server/start.sh
         echo "==> Starting custom server via /server/start.sh ..."
-        runuser -u mc-sftp -- /server/start.sh &
+        as_student /server/start.sh &
         PID=$!
     else
         # Re-read version on every start so version changes take effect
@@ -234,7 +265,7 @@ while true; do
         /mc-plugins.sh sync "$VERSION" || echo "==> WARNING: plugin sync failed — starting anyway."
 
         echo "==> Starting Minecraft server ${VERSION}..."
-        runuser -u mc-sftp -- java \
+        as_student java \
             -Xms${MC_MEM_MIN:-512M} \
             -Xmx${MC_MEM_MAX:-1G} \
             -Dpolyglot.engine.WarnInterpreterOnly=false \
@@ -257,7 +288,12 @@ while true; do
     fi
 
     echo "$PID" > /server/.pid
+    # A trapped signal interrupts 'wait' — keep waiting until the server has
+    # saved and exited.
     wait "$PID" || true
+    while kill -0 "$PID" 2>/dev/null; do
+        wait "$PID" || true
+    done
     rm -f /server/.pid
 
     # Graceful shutdown requested by docker stop (SIGTERM to PID 1)

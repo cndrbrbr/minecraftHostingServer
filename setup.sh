@@ -290,6 +290,7 @@ emit_server() {  # <i>
     build: ./spigot
     container_name: mc${i}
     restart: unless-stopped
+    stop_grace_period: 60s   # time to save the world on docker stop
     stdin_open: true
     tty: true
     ports:
@@ -347,6 +348,7 @@ YAML
     build: ./spigot
     container_name: lobby
     restart: unless-stopped
+    stop_grace_period: 60s   # time to save the world on docker stop
     stdin_open: true
     tty: true
     ports:
