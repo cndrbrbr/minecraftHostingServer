@@ -143,8 +143,9 @@ if [ "$ADMINPANEL" = true ]; then
     [[ "$ADMIN_PORT" =~ ^[0-9]+$ ]] || die "--admin-port must be a number."
 
     if [ "$MAIL_TEST" = true ]; then
+        # Mailpit settings go only into docker-compose.yml; the real SMTP
+        # settings in .env stay untouched for switching back later.
         MAIL_FROM=${MAIL_FROM:-adminpage@test.local}
-        SMTP_HOST=mailpit; SMTP_PORT=1025; SMTP_USER=""; SMTP_TLS=none
     else
         SMTP_USER=${SMTP_USER:-$MAIL_FROM}
         if [ -z "$SMTP_TLS" ]; then
@@ -230,10 +231,12 @@ if [ "$ADMINPANEL" = true ]; then
     env_set ADMIN_DOMAIN "$DOMAIN"
     env_set ADMIN_EMAIL "$ADMIN_EMAIL"
     env_set MAIL_FROM "$MAIL_FROM"
-    env_set SMTP_HOST "$SMTP_HOST"
-    env_set SMTP_PORT "$SMTP_PORT"
-    env_set SMTP_USER "$SMTP_USER"
-    env_set SMTP_TLS "$SMTP_TLS"
+    if [ "$MAIL_TEST" != true ]; then
+        env_set SMTP_HOST "$SMTP_HOST"
+        env_set SMTP_PORT "$SMTP_PORT"
+        env_set SMTP_USER "$SMTP_USER"
+        env_set SMTP_TLS "$SMTP_TLS"
+    fi
     env_set SETUP_PROXY "$PROXY"
     env_set ADMIN_PORT "$ADMIN_PORT"
     env_set SETUP_MAIL_TEST "$MAIL_TEST"
@@ -367,13 +370,19 @@ YAML
       PUBLIC_URL: "${public_url}"
       ADMIN_EMAIL: "\${ADMIN_EMAIL}"
       MAIL_FROM: "\${MAIL_FROM}"
-      SMTP_HOST: "\${SMTP_HOST}"
-      SMTP_PORT: "\${SMTP_PORT}"
-      SMTP_USER: "\${SMTP_USER}"
-      SMTP_TLS: "\${SMTP_TLS}"
 YAML
-        [ "$MAIL_TEST" = true ] || echo "      SMTP_PASSWORD_FILE: /run/secrets/smtp_password"
-        [ "$MAIL_TEST" = true ] && echo "      MAIL_TEST: \"true\""
+        if [ "$MAIL_TEST" = true ]; then
+            echo "      SMTP_HOST: mailpit"
+            echo "      SMTP_PORT: \"1025\""
+            echo "      SMTP_TLS: none"
+            echo "      MAIL_TEST: \"true\""
+        else
+            echo "      SMTP_HOST: \"\${SMTP_HOST}\""
+            echo "      SMTP_PORT: \"\${SMTP_PORT}\""
+            echo "      SMTP_USER: \"\${SMTP_USER}\""
+            echo "      SMTP_TLS: \"\${SMTP_TLS}\""
+            echo "      SMTP_PASSWORD_FILE: /run/secrets/smtp_password"
+        fi
         if [ "$PROXY" = none ]; then
             echo "    ports:"
             echo "      - \"${ADMIN_PORT}:8000\""
@@ -532,5 +541,8 @@ if [ "$ADMINPANEL" = true ]; then
     esac
     echo "  Then send the first invitation to ${ADMIN_EMAIL}:"
     echo "      docker compose exec adminpanel adminctl invite-admin"
-    [ "$MAIL_TEST" = true ] && echo "  Mail test mode: all mails appear at http://${DOMAIN}:8025"
+    if [ "$MAIL_TEST" = true ]; then
+        echo "  Mail test mode: all mails appear at http://${DOMAIN}:8025"
+    fi
 fi
+exit 0
