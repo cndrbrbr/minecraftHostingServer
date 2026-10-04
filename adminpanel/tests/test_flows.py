@@ -45,7 +45,14 @@ class FakeControl:
     async def catalog(self, server):
         return {"version": "26.3", "plugins": [
             {"id": "viaversion", "name": "ViaVersion", "description": "x", "locked": False,
-             "requires": [], "installed": False, "available": True}]}
+             "requires": [], "installed": False, "available": True,
+             "category": "Andere Minecraft-Versionen", "status": "verified", "max": ""},
+            {"id": "coreprotect", "name": "CoreProtect", "description": "y", "locked": False,
+             "requires": [], "installed": False, "available": False,
+             "category": "Bauen & Schützen", "status": "testing", "max": "26.2"},
+            {"id": "worldguard", "name": "WorldGuard", "description": "z", "locked": False,
+             "requires": ["worldedit"], "installed": False, "available": True,
+             "category": "Bauen & Schützen", "status": "verified", "max": ""}]}
 
     async def players(self, server):
         return {"whitelist": ["Steve"], "ops": []}
@@ -358,3 +365,18 @@ def test_properties_restore(env):
     assert c.post("/server/mc2/properties/restore", data={"csrf": csrf_of(html)}).status_code == 403
     c.post("/server/mc1/properties/restore", data={"csrf": csrf_of(html)})
     assert ("mc1", "properties-restore") in control.calls
+
+
+def test_catalog_groups_and_badges(env):
+    _, db, mailer, _, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    html = c.get("/server/mc1").text
+    assert 'class="catalog-scroll"' in html
+    # Groups in the defined order, each once
+    assert html.index("Andere Minecraft-Versionen") < html.index("Bauen &amp; Schützen")
+    assert html.count('class="catalog-group"') == 2
+    assert "Testphase" in html
+    assert "läuft nur bis 26.2" in html
+    assert "Installiert dazu: worldedit" in html

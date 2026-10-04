@@ -53,9 +53,15 @@ save_state() {
 in_catalog() { jq -e --arg id "$1" '.plugins[] | select(.id == $id)' "$CATALOG" >/dev/null; }
 field() { jq -r --arg id "$1" --arg f "$2" '.plugins[] | select(.id == $id) | .[$f] // empty | if type == "array" then .[] else . end' "$CATALOG"; }
 
-# Variant key for <id> on <version>: highest key <= version, else "*", else empty
+# Variant key for <id> on <version>: highest key <= version, else "*", else
+# empty (also when <version> is above the plugin's "max")
 variant_for() {
-    local id="$1" version="$2" best=""
+    local id="$1" version="$2" best="" max
+    max=$(field "$id" max)
+    if [ -n "$max" ] && [ "$max" != "$version" ] && \
+       [ "$(printf '%s\n%s\n' "$max" "$version" | sort -V | tail -n1)" = "$version" ]; then
+        return 0
+    fi
     while read -r key; do
         [ "$key" = "*" ] && continue
         if [ "$(printf '%s\n%s\n' "$key" "$version" | sort -V | head -n1)" = "$key" ]; then
@@ -139,7 +145,9 @@ case "$cmd" in
             f=$(echo "$st" | jq -r --arg id "$id" '.[$id].file // empty')
             [[ "$f" =~ $JAR_RE ]] && [ -f "$PLUGINS/$f" ] && installed=true
             jq -c --arg id "$id" --argjson installed "$installed" --argjson available "$([ -n "$variant" ] && echo true || echo false)" \
-                '.plugins[] | select(.id == $id) | {id, name, description, locked: (.locked // false), requires: (.requires // []), installed: $installed, available: $available}' "$CATALOG"
+                '.plugins[] | select(.id == $id) | {id, name, description, locked: (.locked // false), requires: (.requires // []),
+                  category: (.category // "Weitere"), status: (.status // "verified"), max: (.max // ""),
+                  installed: $installed, available: $available}' "$CATALOG"
         done | jq -s -c --arg v "$version" '{version: $v, plugins: .}'
         ;;
 

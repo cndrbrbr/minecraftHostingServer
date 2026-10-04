@@ -8,7 +8,9 @@
     "locked:  always installed, cannot be removed by students.",
     "requires: ids installed together with this plugin.",
     "replaces: file globs of older/foreign copies removed when this plugin is installed.",
-    "All jars are downloaded when the image is built, so servers need no internet."
+    "All jars are downloaded when the image is built, so servers need no internet.",
+    "max: highest Minecraft version the plugin runs on (optional).",
+    "category: heading on the admin page; status: verified | testing (see plugin-list.md)."
   ],
   "plugins": [
     {
@@ -16,50 +18,72 @@
       "name": "script4kids",
       "description": "JavaScript-Programme schreiben, die in Minecraft bauen (/runscript).",
       "default": true,
-      "replaces": ["jsmn-*.jar"],
+      "replaces": [
+        "jsmn-*.jar"
+      ],
       "variants": {
         "1.21.11": "https://github.com/cndrbrbr/script4kids/releases/download/v1.1.0-mc1.21.11/jsmn-1.1.0-mc1.21.11.jar",
         "26.3": "https://github.com/cndrbrbr/script4kids/releases/download/v1.1.0-mc26.3/jsmn-1.1.0-mc26.3.jar"
-      }
+      },
+      "category": "Unsere Plugins",
+      "status": "verified"
     },
     {
       "id": "cavecompass",
       "name": "CaveCompass",
       "description": "Ein Kompass, der zur nächsten Höhle oder zu Blöcken wie Bienennestern zeigt.",
-      "replaces": ["CaveCompass-*.jar"],
+      "replaces": [
+        "CaveCompass-*.jar"
+      ],
       "variants": {
         "1.21.11": "https://github.com/cndrbrbr/cavecompass/releases/download/v0.10.1-mc1.21.11/CaveCompass-0.10.1-mc1.21.11.jar",
         "26.3": "https://github.com/cndrbrbr/cavecompass/releases/download/v0.10.1-mc26.3/CaveCompass-0.10.1-mc26.3.jar"
-      }
+      },
+      "category": "Unsere Plugins",
+      "status": "verified"
     },
     {
       "id": "geomaptools",
       "name": "geomaptools",
       "description": "Echte Karten (OpenStreetMap) und Bilder in die Welt holen und schnell bauen.",
-      "replaces": ["geomaptools*.jar"],
+      "replaces": [
+        "geomaptools*.jar"
+      ],
       "variants": {
         "1.21.11": "https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc1.21.11/geomaptools-4.37-mc1.21.11.jar",
         "26.3": "https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc26.3/geomaptools-4.37-mc26.3.jar"
-      }
+      },
+      "category": "Unsere Plugins",
+      "status": "verified"
     },
     {
       "id": "viaversion",
       "name": "ViaVersion",
       "description": "Spieler mit einer neueren Minecraft-Version dürfen auf den Server.",
-      "replaces": ["ViaVersion-*.jar"],
+      "replaces": [
+        "ViaVersion-*.jar"
+      ],
       "variants": {
         "*": "https://github.com/ViaVersion/ViaVersion/releases/download/5.12.0/ViaVersion-5.12.0.jar"
-      }
+      },
+      "category": "Andere Minecraft-Versionen",
+      "status": "verified"
     },
     {
       "id": "viabackwards",
       "name": "ViaBackwards",
       "description": "Spieler mit einer älteren Minecraft-Version dürfen auf den Server (braucht ViaVersion).",
-      "requires": ["viaversion"],
-      "replaces": ["ViaBackwards-*.jar"],
+      "requires": [
+        "viaversion"
+      ],
+      "replaces": [
+        "ViaBackwards-*.jar"
+      ],
       "variants": {
         "*": "https://github.com/ViaVersion/ViaBackwards/releases/download/5.12.0/ViaBackwards-5.12.0.jar"
-      }
+      },
+      "category": "Andere Minecraft-Versionen",
+      "status": "verified"
     },
     {
       "id": "prometheus",
@@ -67,9 +91,268 @@
       "description": "Liefert Messwerte für das Monitoring (Grafana). Pflicht-Plugin.",
       "default": true,
       "locked": true,
-      "replaces": ["minecraft-prometheus-exporter*.jar", "PrometheusExporter*.jar"],
+      "replaces": [
+        "minecraft-prometheus-exporter*.jar",
+        "PrometheusExporter*.jar"
+      ],
       "variants": {
         "*": "file:minecraft-prometheus-exporter.jar"
+      },
+      "category": "Technik",
+      "status": "verified"
+    },
+    {
+      "id": "multiverse-core",
+      "name": "Multiverse-Core",
+      "description": "Mehrere Welten auf einem Server anlegen und zwischen ihnen wechseln (/mv).",
+      "category": "Welten & Portale",
+      "status": "verified",
+      "replaces": [
+        "multiverse-core*.jar",
+        "Multiverse-Core*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/3wmN97b8/versions/YZ2Ji4IS/multiverse-core-5.8.1.jar"
+      }
+    },
+    {
+      "id": "multiverse-portals",
+      "name": "Multiverse-Portals",
+      "description": "Portale zwischen den Multiverse-Welten bauen.",
+      "category": "Welten & Portale",
+      "status": "verified",
+      "requires": [
+        "multiverse-core"
+      ],
+      "replaces": [
+        "multiverse-portals*.jar",
+        "Multiverse-Portals*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/8VMk6P0I/versions/otf0vOqh/multiverse-portals-5.3.0.jar"
+      }
+    },
+    {
+      "id": "multiverse-netherportals",
+      "name": "Multiverse-NetherPortals",
+      "description": "Nether- und End-Portale für jede Multiverse-Welt.",
+      "category": "Welten & Portale",
+      "status": "verified",
+      "requires": [
+        "multiverse-core"
+      ],
+      "replaces": [
+        "multiverse-netherportals*.jar",
+        "Multiverse-NetherPortals*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/vtawPsTo/versions/RRa80eDI/multiverse-netherportals-5.1.0.jar"
+      }
+    },
+    {
+      "id": "multiverse-inventories",
+      "name": "Multiverse-Inventories",
+      "description": "Eigenes Inventar pro Welt.",
+      "category": "Welten & Portale",
+      "status": "verified",
+      "requires": [
+        "multiverse-core"
+      ],
+      "replaces": [
+        "multiverse-inventories*.jar",
+        "Multiverse-Inventories*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/qvdtDX3s/versions/86s1EwyC/multiverse-inventories-5.3.6.jar"
+      }
+    },
+    {
+      "id": "multiverse-signportals",
+      "name": "Multiverse-SignPortals",
+      "description": "Schilder als Portale in andere Welten.",
+      "category": "Welten & Portale",
+      "status": "verified",
+      "requires": [
+        "multiverse-core"
+      ],
+      "replaces": [
+        "multiverse-signportals*.jar",
+        "Multiverse-SignPortals*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/WuErDeI1/versions/eL6NdmcK/multiverse-signportals-5.0.4.jar"
+      }
+    },
+    {
+      "id": "voidgen",
+      "name": "VoidGen",
+      "description": "Leere Welten (Void) erzeugen, z. B. für Bauprojekte oder Skyblock.",
+      "category": "Welten & Portale",
+      "status": "testing",
+      "replaces": [
+        "VoidGen*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/DCTiMOWF/versions/MS0I2z4j/VoidGen-2.3.8.jar"
+      }
+    },
+    {
+      "id": "advanced-portals",
+      "name": "Advanced Portals",
+      "description": "Eigene Portale mit Zielen und Befehlen bauen.",
+      "category": "Welten & Portale",
+      "status": "testing",
+      "replaces": [
+        "advanced-portals*.jar",
+        "AdvancedPortals*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/axTqSWQA/versions/OiYxu4ab/advanced-portals-2.8.0-spigot.jar"
+      }
+    },
+    {
+      "id": "worldedit",
+      "name": "WorldEdit",
+      "description": "Große Bereiche auf einmal bauen, kopieren und ändern (//set, //copy …). Beta-Version.",
+      "category": "Bauen & Schützen",
+      "status": "verified",
+      "replaces": [
+        "worldedit*.jar",
+        "WorldEdit*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/1u6JkXh5/versions/J1eeOh6C/worldedit-bukkit-7.4.6-beta-02.jar"
+      }
+    },
+    {
+      "id": "worldguard",
+      "name": "WorldGuard",
+      "description": "Bereiche schützen, damit dort niemand abbaut oder baut (braucht WorldEdit).",
+      "category": "Bauen & Schützen",
+      "status": "verified",
+      "requires": [
+        "worldedit"
+      ],
+      "replaces": [
+        "worldguard*.jar",
+        "WorldGuard*.jar"
+      ],
+      "variants": {
+        "26.2": "https://cdn.modrinth.com/data/DKY9btbd/versions/TtfwTyi6/worldguard-bukkit-7.0.19.jar"
+      }
+    },
+    {
+      "id": "protectionstones",
+      "name": "ProtectionStones",
+      "description": "Grundstücke mit einem Schutzblock sichern (braucht WorldGuard).",
+      "category": "Bauen & Schützen",
+      "status": "testing",
+      "requires": [
+        "worldguard",
+        "worldedit"
+      ],
+      "replaces": [
+        "ProtectionStones*.jar"
+      ],
+      "variants": {
+        "26.2": "https://cdn.modrinth.com/data/r1kETbys/versions/y1r6kma7/ProtectionStones-2.10.6.jar"
+      }
+    },
+    {
+      "id": "blocklocker",
+      "name": "BlockLocker",
+      "description": "Truhen und Türen mit einem Schild abschließen.",
+      "category": "Bauen & Schützen",
+      "status": "verified",
+      "replaces": [
+        "blocklocker*.jar",
+        "BlockLocker*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://github.com/rutgerkok/BlockLocker/releases/download/v1.15/blocklocker-1.15.jar"
+      }
+    },
+    {
+      "id": "coreprotect",
+      "name": "CoreProtect",
+      "description": "Zeichnet auf, wer was gebaut oder abgebaut hat, und kann es zurücksetzen. Läuft bis Minecraft 26.2.",
+      "category": "Bauen & Schützen",
+      "status": "testing",
+      "max": "26.2",
+      "replaces": [
+        "CoreProtect*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/Lu3KuzdV/versions/3sehX6Sg/CoreProtect-CE-24.1.jar"
+      }
+    },
+    {
+      "id": "bedwars",
+      "name": "Screaming BedWars",
+      "description": "Das Minispiel BedWars mit Arenen und Teams.",
+      "category": "Spiele",
+      "status": "testing",
+      "replaces": [
+        "BedWars*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/8sg1aj4I/versions/nUPEYDAm/BedWars-0.2.44.jar"
+      }
+    },
+    {
+      "id": "protocollib",
+      "name": "ProtocolLib",
+      "description": "Grundlage für andere Plugins (z. B. Orebfuscator). Entwickler-Version mit 26.3-Korrekturen.",
+      "category": "Technik",
+      "status": "verified",
+      "replaces": [
+        "ProtocolLib*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib-Spigot.jar"
+      }
+    },
+    {
+      "id": "orebfuscator",
+      "name": "Orebfuscator",
+      "description": "Versteckt Erze vor X-Ray-Cheats (braucht ProtocolLib).",
+      "category": "Technik",
+      "status": "verified",
+      "requires": [
+        "protocollib"
+      ],
+      "replaces": [
+        "orebfuscator*.jar",
+        "Orebfuscator*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://cdn.modrinth.com/data/XY7PHeei/versions/ACrIxTN8/orebfuscator-bukkit-5.6.2.jar"
+      }
+    },
+    {
+      "id": "vault",
+      "name": "Vault",
+      "description": "Grundlage für Geld- und Rechte-Plugins anderer Hersteller.",
+      "category": "Technik",
+      "status": "testing",
+      "replaces": [
+        "Vault*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://github.com/MilkBowl/Vault/releases/download/1.7.3/Vault.jar"
+      }
+    },
+    {
+      "id": "groupmanager",
+      "name": "GroupManager",
+      "description": "Rechte für Spielergruppen vergeben.",
+      "category": "Technik",
+      "status": "testing",
+      "replaces": [
+        "GroupManager*.jar"
+      ],
+      "variants": {
+        "1.21.11": "https://github.com/ElgarL/GroupManager/releases/download/v3.2/GroupManager.jar"
       }
     }
   ]

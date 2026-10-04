@@ -71,23 +71,36 @@
   {% else %}<p>Keine Plugins installiert.</p>{% endif %}
 
   <h3>Aus dem Katalog installieren</h3>
-  <div class="catalog">
-    {% for c in catalog.plugins if not c.installed and not c.locked %}
-    <div class="item">
-      <strong>{{ c.name }}</strong>
-      <p>{{ c.description }}</p>
-      {% if c.available %}
-      <form method="post" action="/server/{{ server.name }}/plugins/install">
-        <input type="hidden" name="csrf" value="{{ session.csrf }}">
-        <input type="hidden" name="plugin" value="{{ c.id }}">
-        <button class="small primary">Installieren</button>
-      </form>
-      {% else %}<p class="hint">Nicht für Minecraft {{ catalog.version }} verfügbar.</p>{% endif %}
+  {% set offer = catalog.plugins | rejectattr('installed') | rejectattr('locked') | list %}
+  {% if offer %}
+  <div class="catalog-scroll" tabindex="0" aria-label="Plugin-Katalog">
+    {% set order = ['Unsere Plugins', 'Andere Minecraft-Versionen', 'Welten & Portale', 'Bauen & Schützen', 'Spiele', 'Technik'] %}
+    {% set cats = offer | map(attribute='category') | unique | list %}
+    {% for cat in (order | select('in', cats) | list) + (cats | reject('in', order) | list) %}
+    <h4 class="catalog-group">{{ cat }}</h4>
+    <div class="catalog">
+      {% for c in offer if c.category == cat %}
+      <div class="item">
+        <div class="item-head"><strong>{{ c.name }}</strong>
+          {% if c.status == 'testing' %}<span class="badge busy" title="Läuft auf dem Server, aber noch wenig erprobt">Testphase</span>{% endif %}</div>
+        <p>{{ c.description }}</p>
+        {% if c.requires %}<p class="hint">Installiert dazu: {{ c.requires | join(', ') }}</p>{% endif %}
+        {% if c.available %}
+        <form method="post" action="/server/{{ server.name }}/plugins/install">
+          <input type="hidden" name="csrf" value="{{ session.csrf }}">
+          <input type="hidden" name="plugin" value="{{ c.id }}">
+          <button class="small primary">Installieren</button>
+        </form>
+        {% else %}<p class="hint">Nicht für Minecraft {{ catalog.version }} verfügbar{% if c.max %} (läuft nur bis {{ c.max }}){% endif %}.</p>{% endif %}
+      </div>
+      {% endfor %}
     </div>
-    {% else %}
-    <p class="hint">Alle Katalog-Plugins sind schon installiert.</p>
     {% endfor %}
   </div>
+  <p class="hint">Plugins mit „Testphase“ laufen auf dem Server, sind aber noch wenig erprobt.</p>
+  {% else %}
+  <p class="hint">Alle Katalog-Plugins sind schon installiert.</p>
+  {% endif %}
 
   <h3>Eigenes Plugin hochladen</h3>
   <form method="post" action="/server/{{ server.name }}/plugins/upload" enctype="multipart/form-data" class="row">
