@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{{ server.name }}{% endblock %}
+{% block content %}
+{% set label, tone = state_labels.get(status.state, (status.state, 'off')) %}
+{% set managed = status.get('type', 'spigot') != 'custom' %}
+
+<section class="card">
+  <div class="headline">
+    <h1>Server {{ server.name }}</h1>
+    <span class="badge {{ tone }}">{{ label }}</span>
+  </div>
+  {% if session.role == 'admin' %}
+  <p class="hint">{% if owner %}Gehört {{ owner.name }} ({{ owner.email }}).{% else %}Niemandem zugeordnet.{% endif %}</p>
+  {% endif %}
+  {% if error %}<p class="flash err">{{ error }}</p>{% endif %}
+
+  <dl class="facts">
+    {% if status.version %}<dt>Minecraft-Version</dt><dd>{{ status.version }}</dd>{% endif %}
+    {% if status.state == 'running' and managed %}
+    <dt>Spieler online</dt>
+    <dd>{% if status.players %}{{ status.players | join(', ') }}{% else %}niemand{% endif %}
+        {% if status.max_players %}<span class="hint">(höchstens {{ status.max_players }})</span>{% endif %}</dd>
+    {% endif %}
+    <dt>Verbinden</dt>
+    <dd>{% if server.public_mc_port %}Minecraft: <code>&lt;Serveradresse&gt;:{{ server.public_mc_port }}</code>
+        {% else %}Über die Lobby, dann <code>/server {{ server.name }}</code>{% endif %}</dd>
+  </dl>
+
+  <div class="buttons">
+    {% for action, text, cls in [('start', 'Starten', 'primary'), ('restart', 'Neu starten', ''), ('stop', 'Stoppen', 'danger')] %}
+    <form method="post" action="/server/{{ server.name }}/power">
+      <input type="hidden" name="csrf" value="{{ session.csrf }}">
+      <input type="hidden" name="action" value="{{ action }}">
+      <button class="{{ cls }}"
+        {% if action == 'start' and status.state in ('running', 'starting', 'building') %}disabled{% endif %}
+        {% if action in ('stop', 'restart') and status.state in ('stopped', 'unreachable') %}disabled{% endif %}>{{ text }}</button>
+    </form>
+    {% endfor %}
+    <a class="button" href="/server/{{ server.name }}">Aktualisieren</a>
+  </div>
+  {% if status.state == 'building' %}<p class="hint">Eine neue Minecraft-Version wird gebaut. Das kann einige Minuten dauern.</p>{% endif %}
+</section>
+
+{% if managed %}
+<section class="card">
+  <h2>Plugins</h2>
+  <p class="hint">Änderungen an Plugins werden erst nach einem Neustart des Servers aktiv.</p>
+  {% if plugins %}
+  <table class="list">
+    <thead><tr><th>Plugin</th><th>Version</th><th></th></tr></thead>
+    <tbody>
+    {% for p in plugins %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{{ p.version }}</td>
+        <td class="right">
+          {% if p.locked %}<span class="badge off" title="Wird für das Monitoring gebraucht">Pflicht</span>
+          {% else %}
+          <form method="post" action="/server/{{ server.name }}/plugins/remove">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <input type="hidden" name="file" value="{{ p.file }}">
+            <button class="small">Entfernen</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p>Keine Plugins installiert.</p>{% endif %}
+
+  <h3>Aus dem Katalog installieren</h3>
+  <div class="catalog">
+    {% for c in catalog.plugins if not c.installed and not c.locked %}
+    <div class="item">
+      <strong>{{ c.name }}</strong>
+      <p>{{ c.description }}</p>
+      {% if c.available %}
+      <form method="post" action="/server/{{ server.name }}/plugins/install">
+        <input type="hidden" name="csrf" value="{{ session.csrf }}">
+        <input type="hidden" name="plugin" value="{{ c.id }}">
+        <button class="small primary">Installieren</button>
+      </form>
+      {% else %}<p class="hint">Nicht für Minecraft {{ catalog.version }} verfügbar.</p>{% endif %}
+    </div>
+    {% else %}
+    <p class="hint">Alle Katalog-Plugins sind schon installiert.</p>
+    {% endfor %}
+  </div>
+
+  <h3>Eigenes Plugin hochladen</h3>
+  <form method="post" action="/server/{{ server.name }}/plugins/upload" enctype="multipart/form-data" class="row">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <input type="file" name="jar" accept=".jar" required>
+    <button class="primary">Hochladen</button>
+  </form>
+  <p class="hint">Eine Spigot-Plugin-Datei (.jar, höchstens {{ max_upload_mb }} MB). Ein Plugin mit demselben Namen wird ersetzt.</p>
+</section>
+
+<section class="card">
+  <h2>Spieler</h2>
+  <p class="hint">Nur Spieler auf dieser Liste dürfen auf den Server. Operatoren dürfen alle Befehle benutzen.</p>
+  {% if players.whitelist %}
+  <table class="list">
+    <thead><tr><th>Spieler</th><th>Rechte</th><th></th></tr></thead>
+    <tbody>
+    {% for name in players.whitelist %}
+      {% set is_op = name.lower() in players.ops | map('lower') | list %}
+      <tr>
+        <td>{{ name }}</td>
+        <td>{% if is_op %}<span class="badge ok">Operator</span>{% else %}Spieler{% endif %}</td>
+        <td class="right">
+          <form method="post" action="/server/{{ server.name }}/players">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <input type="hidden" name="player" value="{{ name }}">
+            <input type="hidden" name="action" value="{{ 'deop' if is_op else 'op' }}">
+            <button class="small">{{ 'Operator wegnehmen' if is_op else 'Zum Operator machen' }}</button>
+          </form>
+          <form method="post" action="/server/{{ server.name }}/players">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <input type="hidden" name="player" value="{{ name }}">
+            <input type="hidden" name="action" value="player-remove">
+            <button class="small danger">Entfernen</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p>Noch niemand auf der Liste.</p>{% endif %}
+  {% set ops_only = players.ops | reject('in', players.whitelist) | list %}
+  {% if ops_only %}<p class="hint">Operatoren ohne Whitelist-Eintrag: {{ ops_only | join(', ') }}</p>{% endif %}
+
+  <form method="post" action="/server/{{ server.name }}/players" class="row">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <input type="hidden" name="action" value="player-add">
+    <input name="player" placeholder="Minecraft-Name" pattern="[A-Za-z0-9_]{3,16}" required
+           title="3–16 Zeichen: Buchstaben, Ziffern und _">
+    <button class="primary">Spieler hinzufügen</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

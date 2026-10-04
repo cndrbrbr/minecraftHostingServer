@@ -9,6 +9,18 @@
 #   ssh mc-ctrl@<host> -p <port> restore <YYYY-MM-DD|latest>
 #   ssh mc-ctrl@<host> -p <port> adduser <minecraft-username>
 #
+# Used by the admin page (machine-readable JSON output where noted):
+#   status                          server state (JSON)
+#   restart                         restart (or start) the server
+#   plugins | catalog               installed plugins / installable plugins (JSON)
+#   plugin-install <id>             install a catalog plugin
+#   plugin-remove <file.jar>        remove an installed plugin
+#   players                         whitelist and ops (JSON)
+#   player-add|player-remove <name> whitelist
+#   op|deop <name>                  operator rights
+#   wipe                            reset the server for the next student
+#
+# Arguments are validated again by the called scripts.
 # A student running custom software (MC_SERVER_TYPE=custom) only gets
 # start/stop here — version/restore/adduser all assume the managed
 # Spigot file layout, which custom-type students don't have.
@@ -30,6 +42,42 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     stop)
         exec sudo /mc-stop.sh
         ;;
+    status)
+        exec sudo /mc-status.sh
+        ;;
+    restart)
+        exec sudo /mc-restart.sh
+        ;;
+    plugins)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-plugins.sh list
+        ;;
+    catalog)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-plugins.sh catalog
+        ;;
+    plugin-install\ *)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-plugins.sh install "${SSH_ORIGINAL_COMMAND#plugin-install }"
+        ;;
+    plugin-remove\ *)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-plugins.sh remove "${SSH_ORIGINAL_COMMAND#plugin-remove }"
+        ;;
+    players)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-players.sh list
+        ;;
+    player-add\ *|player-remove\ *|op\ *|deop\ *)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        ACTION="${SSH_ORIGINAL_COMMAND%% *}"
+        ACTION="${ACTION#player-}"
+        exec sudo /mc-players.sh "$ACTION" "${SSH_ORIGINAL_COMMAND#* }"
+        ;;
+    wipe)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-wipe.sh
+        ;;
     version\ *)
         [ "$SERVER_TYPE" = "custom" ] && custom_denied
         VERSION="${SSH_ORIGINAL_COMMAND#version }"
@@ -47,8 +95,7 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
         ;;
     *)
         if [ "$SERVER_TYPE" = "custom" ]; then
-            echo "Usage: ssh mc-ctrl@<host> -p <port> start"
-            echo "       ssh mc-ctrl@<host> -p <port> stop"
+            echo "Usage: ssh mc-ctrl@<host> -p <port> start | stop | restart | status"
         else
             echo "Usage: ssh mc-ctrl@<host> -p <port> start"
             echo "       ssh mc-ctrl@<host> -p <port> stop"

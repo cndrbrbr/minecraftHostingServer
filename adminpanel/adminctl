@@ -1,0 +1,3 @@
+#!/bin/sh
+# adminctl — see app/cli.py. Runs as the unprivileged app user.
+cd /app && exec setpriv --reuid=app --regid=app --init-groups python -m app.cli "$@"

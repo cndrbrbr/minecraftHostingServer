@@ -1,0 +1,76 @@
+{
+  "_comment": [
+    "Plugins students can install from the admin page (and mc-plugins.sh).",
+    "variants: key = lowest Minecraft version the jar is for ('*' = all versions).",
+    "  For a server on version V the variant with the highest key <= V is used.",
+    "  Values are download URLs, or file:<name> for a jar in spigot/ (build context).",
+    "default: installed automatically on a fresh server.",
+    "locked:  always installed, cannot be removed by students.",
+    "requires: ids installed together with this plugin.",
+    "replaces: file globs of older/foreign copies removed when this plugin is installed.",
+    "All jars are downloaded when the image is built, so servers need no internet."
+  ],
+  "plugins": [
+    {
+      "id": "script4kids",
+      "name": "script4kids",
+      "description": "JavaScript-Programme schreiben, die in Minecraft bauen (/runscript).",
+      "default": true,
+      "replaces": ["jsmn-*.jar"],
+      "variants": {
+        "1.21.11": "https://github.com/cndrbrbr/script4kids/releases/download/v1.1.0-mc1.21.11/jsmn-1.1.0-mc1.21.11.jar",
+        "26.3": "https://github.com/cndrbrbr/script4kids/releases/download/v1.1.0-mc26.3/jsmn-1.1.0-mc26.3.jar"
+      }
+    },
+    {
+      "id": "cavecompass",
+      "name": "CaveCompass",
+      "description": "Ein Kompass, der zur nächsten Höhle oder zu Blöcken wie Bienennestern zeigt.",
+      "replaces": ["CaveCompass-*.jar"],
+      "variants": {
+        "1.21.11": "https://github.com/cndrbrbr/cavecompass/releases/download/v0.10.1-mc1.21.11/CaveCompass-0.10.1-mc1.21.11.jar",
+        "26.3": "https://github.com/cndrbrbr/cavecompass/releases/download/v0.10.1-mc26.3/CaveCompass-0.10.1-mc26.3.jar"
+      }
+    },
+    {
+      "id": "geomaptools",
+      "name": "geomaptools",
+      "description": "Echte Karten (OpenStreetMap) und Bilder in die Welt holen und schnell bauen.",
+      "replaces": ["geomaptools*.jar"],
+      "variants": {
+        "1.21.11": "https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc1.21.11/geomaptools-4.37-mc1.21.11.jar",
+        "26.3": "https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc26.3/geomaptools-4.37-mc26.3.jar"
+      }
+    },
+    {
+      "id": "viaversion",
+      "name": "ViaVersion",
+      "description": "Spieler mit einer neueren Minecraft-Version dürfen auf den Server.",
+      "replaces": ["ViaVersion-*.jar"],
+      "variants": {
+        "*": "https://github.com/ViaVersion/ViaVersion/releases/download/5.12.0/ViaVersion-5.12.0.jar"
+      }
+    },
+    {
+      "id": "viabackwards",
+      "name": "ViaBackwards",
+      "description": "Spieler mit einer älteren Minecraft-Version dürfen auf den Server (braucht ViaVersion).",
+      "requires": ["viaversion"],
+      "replaces": ["ViaBackwards-*.jar"],
+      "variants": {
+        "*": "https://github.com/ViaVersion/ViaBackwards/releases/download/5.12.0/ViaBackwards-5.12.0.jar"
+      }
+    },
+    {
+      "id": "prometheus",
+      "name": "PrometheusExporter",
+      "description": "Liefert Messwerte für das Monitoring (Grafana). Pflicht-Plugin.",
+      "default": true,
+      "locked": true,
+      "replaces": ["minecraft-prometheus-exporter*.jar", "PrometheusExporter*.jar"],
+      "variants": {
+        "*": "file:minecraft-prometheus-exporter.jar"
+      }
+    }
+  ]
+}

@@ -51,6 +51,10 @@ mkdir -p /run/sshd
 /usr/sbin/sshd
 echo "==> SSH server started"
 
+# Default Minecraft version for mc-status.sh / mc-plugins.sh (they run via
+# sudo with a reset environment and cannot see SPIGOT_VERSION).
+echo "$DEFAULT_VERSION" > /server/.default-version
+
 # Record the server type on the volume so mc-version.sh / mc-restore.sh /
 # mc-adduser.sh (which run later via sudo, with a reset environment) can
 # read it back without relying on env vars surviving sudo.
@@ -60,13 +64,8 @@ if [ "$SERVER_TYPE" != "custom" ]; then
     # ── Volume directory structure (managed Spigot layout) ───────
     mkdir -p /server/data/cfg /server/data/plugins /server/data/worlds
 
-    # ── Plugin: always update so image rebuilds take effect ──────
-    cp /server-base/plugins/*.jar /server/data/plugins/
-
-    # ── PrometheusExporter config: copy on first run only ────────
-    mkdir -p /server/data/plugins/PrometheusExporter
-    [ -f /server/data/plugins/PrometheusExporter/config.yml ] || \
-        cp /server-base/plugins/PrometheusExporter/config.yml /server/data/plugins/PrometheusExporter/config.yml
+    # Plugins are installed from the image's catalog by /mc-plugins.sh sync
+    # before every server start (see the start loop below).
 
     # ── Config: copy to volume on first run only ─────────────────
     [ -f /server/data/cfg/server.properties ]     || cp /server-base/server.properties /server/data/cfg/server.properties
@@ -90,6 +89,22 @@ if [ "$SERVER_TYPE" != "custom" ]; then
     else
         sed -i 's/online-mode=false/online-mode=true/' /server/data/cfg/server.properties
     fi
+
+    # ── RCON for the admin page (whitelist/op/status without restart) ──
+    # Only used from inside the container (port 25575 is not published);
+    # the password is random per server and kept on the volume.
+    [ -s /server/.rcon-password ] || head -c 24 /dev/urandom | base64 | tr -d '/+=' > /server/.rcon-password
+    chmod 600 /server/.rcon-password
+    RCON_PASSWORD=$(cat /server/.rcon-password)
+    PROPS=/server/data/cfg/server.properties
+    for kv in "enable-rcon=true" "rcon.port=25575" "rcon.password=${RCON_PASSWORD}" "broadcast-rcon-to-ops=false"; do
+        key="${kv%%=*}"
+        if grep -q "^${key}=" "$PROPS"; then
+            sed -i "s|^${key}=.*|${kv}|" "$PROPS"
+        else
+            echo "$kv" >> "$PROPS"
+        fi
+    done
 
     mkdir -p /server/bundler /server/logs /server/crash-reports
 else
@@ -210,18 +225,10 @@ while true; do
 
         chown mc-sftp:mc-sftp "$SERVER_JAR"
 
-        # ── script4kids (jsmn): pick the jar built for this version ──
-        # A plugin built for a newer API than the server refuses to load, so
-        # servers on 26.3+ get the 26.3 build and everything older the 1.21.11
-        # build (which needs at least 1.21.11 itself).
-        if [ "$(printf '%s\n%s\n' 26.3 "$VERSION" | sort -V | head -n1)" = "26.3" ]; then
-            JSMN_MC=26.3
-        else
-            JSMN_MC=1.21.11
-        fi
-        rm -f /server/data/plugins/jsmn-*.jar
-        cp /server-base/plugins-mc/"$JSMN_MC"/jsmn-*.jar /server/data/plugins/
-        chown mc-sftp:mc-sftp /server/data/plugins/jsmn-*.jar
+        # ── Plugins: defaults on a fresh server, locked ones always, and
+        # every installed catalog plugin switched to the jar built for this
+        # version (a plugin built for a newer API than the server won't load).
+        /mc-plugins.sh sync "$VERSION" || echo "==> WARNING: plugin sync failed — starting anyway."
 
         echo "==> Starting Minecraft server ${VERSION}..."
         runuser -u mc-sftp -- java \

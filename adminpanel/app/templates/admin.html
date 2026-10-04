@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="headline">
+    <h1>Alle Server</h1>
+    <a class="button" href="/admin">Aktualisieren</a>
+  </div>
+  <table class="list">
+    <thead><tr><th>Server</th><th>Zustand</th><th>Version</th><th>Spieler</th><th>Schüler</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      {% set label, tone = state_labels.get(r.status.state, (r.status.state, 'off')) %}
+      <tr>
+        <td><a href="/server/{{ r.server.name }}"><strong>{{ r.server.name }}</strong></a></td>
+        <td><span class="badge {{ tone }}">{{ label }}</span></td>
+        <td>{{ r.status.version or '–' }}</td>
+        <td>{{ r.status.players | length if r.status.players is defined else '–' }}</td>
+        <td>{% if r.owner %}{{ r.owner.name }}<br><span class="hint">{{ r.owner.email }}{% if not r.owner.active %} · Einladung offen{% endif %}</span>
+            {% else %}<span class="hint">frei</span>{% endif %}</td>
+        <td class="right">
+          {% if r.owner %}
+          <details class="confirm">
+            <summary>Freigeben …</summary>
+            <form method="post" action="/admin/release" class="stack">
+              <input type="hidden" name="csrf" value="{{ session.csrf }}">
+              <input type="hidden" name="server" value="{{ r.server.name }}">
+              <p>{{ r.owner.name }} verliert sofort den Zugang zu {{ r.server.name }}.</p>
+              <label class="check"><input type="checkbox" name="wipe" value="yes">
+                Server zurücksetzen: Server stoppen, Welt und Plugins in einen Backup-Ordner verschieben,
+                Spielerliste leeren, Standard-Version</label>
+              <button class="danger small">Freigeben</button>
+            </form>
+          </details>
+          {% else %}
+          <details class="confirm">
+            <summary>Vergeben …</summary>
+            <form method="post" action="/admin/assign" class="stack">
+              <input type="hidden" name="csrf" value="{{ session.csrf }}">
+              <input type="hidden" name="server" value="{{ r.server.name }}">
+              <label>Name <input name="name" required maxlength="80"></label>
+              <label>Mailadresse <input type="email" name="email" required></label>
+              <button class="primary small">Vergeben und einladen</button>
+            </form>
+          </details>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Zugänge</h2>
+  <table class="list">
+    <thead><tr><th>Name</th><th>Mailadresse</th><th>Rolle</th><th>Server</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.name }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ 'Admin' if u.role == 'admin' else 'Schüler' }}</td>
+        <td>{{ u.server or '–' }}</td>
+        <td>{% if u.active %}aktiv{% else %}<span class="hint">Einladung offen</span>{% endif %}</td>
+        <td class="right">
+          {% if u.id != session.user_id %}
+          <details class="confirm">
+            <summary>Mehr …</summary>
+            <form method="post" action="/admin/users/{{ u.id }}/reinvite">
+              <input type="hidden" name="csrf" value="{{ session.csrf }}">
+              <button class="small">Neue Einladung schicken (altes Passwort wird ungültig)</button>
+            </form>
+            <form method="post" action="/admin/users/{{ u.id }}/delete">
+              <input type="hidden" name="csrf" value="{{ session.csrf }}">
+              <button class="small danger">Zugang löschen (Name und Mailadresse werden entfernt)</button>
+            </form>
+          </details>
+          {% else %}<span class="hint">du</span>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <details class="confirm">
+    <summary>Weiteren Admin hinzufügen …</summary>
+    <form method="post" action="/admin/users/add-admin" class="row">
+      <input type="hidden" name="csrf" value="{{ session.csrf }}">
+      <input name="name" placeholder="Name" required maxlength="80">
+      <input type="email" name="email" placeholder="Mailadresse" required>
+      <button class="primary">Einladen</button>
+    </form>
+  </details>
+</section>
+
+<section class="card">
+  <h2>Letzte Aktionen</h2>
+  {% if audit %}
+  <table class="list compact">
+    <thead><tr><th>Zeit</th><th>Wer</th><th>Server</th><th>Aktion</th></tr></thead>
+    <tbody>
+    {% for a in audit %}
+      <tr>
+        <td class="nowrap">{{ a.ts | datetime }}</td>
+        <td>{{ a.actor }}</td>
+        <td>{{ a.server or '' }}</td>
+        <td>{{ a.action }}{% if a.detail %} <span class="hint">{{ a.detail }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="hint">Noch nichts passiert.</p>{% endif %}
+</section>
+{% endblock %}

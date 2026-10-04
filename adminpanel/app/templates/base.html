@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Minecraft-Server{% endblock %} · Adminseite</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/"><img src="/static/icon.svg" alt="" width="28" height="28"> Minecraft-Server</a>
+    {% if session and session.stage == 'full' %}
+    <nav>
+      {% if session.role == 'admin' %}<a href="/admin">Übersicht</a>{% endif %}
+      <span class="who">{{ session.name }}</span>
+      <form method="post" action="/logout"><button class="link">Abmelden</button></form>
+    </nav>
+    {% endif %}
+  </header>
+  <main>
+    {% if flash %}<p class="flash {{ flash[0] }}" role="status">{{ flash[1] }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
