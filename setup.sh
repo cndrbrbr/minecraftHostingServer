@@ -217,8 +217,17 @@ mkdir -p keys
 for i in $(seq 1 "$SERVERS"); do
     dir="keys/mc${i}"
     mkdir -p "$dir"
-    [ -f "$dir/sftp_key" ] || { ssh-keygen -q -t ed25519 -f "$dir/sftp_key" -N '' -C "mc${i}-sftp"; echo "✓ SFTP key for mc${i} generated"; }
-    [ -f "$dir/ctrl_key" ] || { ssh-keygen -q -t ed25519 -f "$dir/ctrl_key" -N '' -C "mc${i}-ctrl"; echo "✓ control key for mc${i} generated"; }
+    for k in sftp ctrl; do
+        if [ ! -f "$dir/${k}_key" ]; then
+            rm -f "$dir/${k}_key.pub"
+            ssh-keygen -q -t ed25519 -f "$dir/${k}_key" -N '' -C "mc${i}-${k}"
+            echo "✓ ${k} key for mc${i} generated"
+        elif [ ! -f "$dir/${k}_key.pub" ]; then
+            # keys/ is not in git: recreate a missing public key from the private one
+            ssh-keygen -y -f "$dir/${k}_key" > "$dir/${k}_key.pub"
+        fi
+        chmod 600 "$dir/${k}_key"
+    done
     env_set "MC${i}_SFTP_PUBKEY" "$(cat "$dir/sftp_key.pub")"
     env_set "MC${i}_CTRL_PUBKEY" "$(cat "$dir/ctrl_key.pub")"
 done

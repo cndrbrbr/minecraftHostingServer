@@ -1,6 +1,5 @@
-# Private SSH keys — never commit these
-keys/mc*/sftp_key
-keys/mc*/ctrl_key
+# SSH keys — never commit them (private nor public; setup.sh creates them)
+keys/
 
 # Populated .env contains public keys (safe to commit if desired,
 # but excluded here to avoid accidental exposure)

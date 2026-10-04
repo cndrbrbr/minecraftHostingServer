@@ -302,7 +302,7 @@ keys/
 └── mcN/  ...
 ```
 
-> **Never commit the private key files.** They are excluded by `.gitignore`.
+> **The `keys/` folder is not part of the repository** (excluded by `.gitignore`) — keep it, together with `.env` and `secrets/`, only on the host and in your backups. Missing `.pub` files are recreated from the private keys by `setup.sh`.
 
 ### Step 4 — Build the image and start all servers
 
