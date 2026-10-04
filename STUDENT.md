@@ -29,7 +29,7 @@ Only for FileZilla and PuTTY — your two key files:
 
 ## Part 0 — The admin page: the easy way
 
-A detailed guide in German with screenshots: [admin-handbuch.md](admin-handbuch.md#teil-2--den-eigenen-server-bedienen).
+A detailed guide in German with screenshots: [schueler-handbuch.md](schueler-handbuch.md).
 
 ### First time: set your password
 

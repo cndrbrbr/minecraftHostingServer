@@ -116,7 +116,17 @@
 
 <section class="card">
   <h2>Spieler</h2>
-  <p class="hint">Nur Spieler auf dieser Liste dürfen auf den Server. Operatoren dürfen alle Befehle benutzen.</p>
+  {% if status.whitelist %}
+  <p class="hint">Die Spielerliste ist <strong>eingeschaltet</strong>: Nur Spieler auf dieser Liste dürfen auf den Server.
+     Operatoren dürfen alle Befehle benutzen.</p>
+  {% elif status.whitelist is defined %}
+  <p class="flash err">Die Spielerliste ist <strong>ausgeschaltet</strong> – im Moment darf <strong>jeder</strong> auf den Server.
+     Zum Einschalten in den <a href="/server/{{ server.name }}/properties">Einstellungen</a>
+     <code>white-list=true</code> setzen und neu starten.</p>
+  <p class="hint">Operatoren dürfen alle Befehle benutzen.</p>
+  {% else %}
+  <p class="hint">Spieler auf der Spielerliste (Whitelist) und Operatoren. Operatoren dürfen alle Befehle benutzen.</p>
+  {% endif %}
   {% if players.whitelist %}
   <table class="list">
     <thead><tr><th>Spieler</th><th>Rechte</th><th></th></tr></thead>

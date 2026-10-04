@@ -33,6 +33,10 @@ else
     state=building
 fi
 
+# Is the whitelist switched on? (white-list=true in server.properties)
+whitelist=false
+grep -q '^white-list=true' /server/data/cfg/server.properties 2>/dev/null && whitelist=true
+
 jq -n -c --arg state "$state" --arg type "$type" --arg version "$version" \
-    --argjson players "${players:-[]}" --argjson max "${max:-0}" \
-    '{state: $state, type: $type, version: $version, players: $players, max_players: $max}'
+    --argjson players "${players:-[]}" --argjson max "${max:-0}" --argjson whitelist "$whitelist" \
+    '{state: $state, type: $type, version: $version, players: $players, max_players: $max, whitelist: $whitelist}'

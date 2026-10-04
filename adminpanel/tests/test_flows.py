@@ -37,7 +37,8 @@ class FakeControl:
                            "version": "3.1.2", "catalog_id": "prometheus", "locked": True}]
 
     async def status(self, server):
-        return {"state": self.state, "type": "spigot", "version": "26.3", "players": [], "max_players": 20}
+        return {"state": self.state, "type": "spigot", "version": "26.3", "players": [], "max_players": 20,
+                "whitelist": self.whitelist}
 
     async def plugins(self, server):
         return self.installed
@@ -80,6 +81,7 @@ class FakeControl:
 
     props = "motd=A Minecraft Server\ndifficulty=easy\nserver-port=25565\n"
     state = "running"
+    whitelist = True
     saved = None
 
     async def properties(self, server):
@@ -471,3 +473,14 @@ def test_upload_path_is_relative_to_sftp_start_dir(tmp_path):
     asyncio.run(control.upload_plugin(Server("mc1", "mc1"), "Test-1.0.jar", b"jar"))
     assert opened == [("data/plugins/Test-1.0.jar", "wb")]
     assert written == [b"jar"]
+
+
+def test_whitelist_state_is_shown(env):
+    _, db, mailer, control, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    assert "eingeschaltet" in c.get("/server/mc1").text
+    control.whitelist = False
+    html = c.get("/server/mc1").text
+    assert "ausgeschaltet" in html and "white-list=true" in html
