@@ -1,3 +1,5 @@
 #!/bin/sh
 # adminctl — see app/cli.py. Runs as the unprivileged app user.
+# The entrypoint copied the SMTP password to a file the app user may read
+[ -f /run/app-secrets/smtp_password ] && export SMTP_PASSWORD_FILE=/run/app-secrets/smtp_password
 cd /app && exec env HOME=/home/app setpriv --reuid=app --regid=app --init-groups python -m app.cli "$@"
