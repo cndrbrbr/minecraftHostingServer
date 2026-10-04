@@ -82,6 +82,10 @@ class FakeControl:
         self.saved = (server.name, content)
         return Result(True, "==> server.properties saved.")
 
+    async def restore_properties(self, server):
+        self.calls.append((server.name, "properties-restore"))
+        return Result(True, "ok")
+
 
 ORIGIN = "http://testserver"
 
@@ -343,3 +347,14 @@ def test_properties_size_limit(env):
     html = c.get("/server/mc1/properties").text
     c.post("/server/mc1/properties", data={"content": "a=" + "x" * 70000, "csrf": csrf_of(html)})
     assert control.saved is None
+
+
+def test_properties_restore(env):
+    _, db, mailer, control, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    html = c.get("/server/mc1/properties").text
+    assert c.post("/server/mc2/properties/restore", data={"csrf": csrf_of(html)}).status_code == 403
+    c.post("/server/mc1/properties/restore", data={"csrf": csrf_of(html)})
+    assert ("mc1", "properties-restore") in control.calls

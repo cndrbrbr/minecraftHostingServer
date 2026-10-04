@@ -375,6 +375,13 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
         return page(request, "properties.html", s, server=server, content=content, error=err,
                     status=status, max_kb=MAX_PROPERTIES // 1024)
 
+    @app.post("/server/{name}/properties/restore")
+    async def properties_restore(request: Request, name: str, csrf: str = Form("")):
+        return await server_action(
+            request, name, csrf, lambda srv: control.restore_properties(srv),
+            "Die vorherige Fassung von server.properties ist wiederhergestellt. "
+            "Sie gilt ab dem nächsten Start.", "properties restore")
+
     @app.post("/server/{name}/properties")
     async def properties_save(request: Request, name: str, content: str = Form(""),
                               action: str = Form("save"), csrf: str = Form("")):

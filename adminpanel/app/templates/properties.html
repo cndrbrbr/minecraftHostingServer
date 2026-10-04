@@ -25,6 +25,10 @@
       <a class="button" href="/server/{{ server.name }}/properties">Änderungen verwerfen</a>
     </div>
   </form>
+  <form method="post" action="/server/{{ server.name }}/properties/restore" class="row">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <button class="link">Letzte gespeicherte Änderung rückgängig machen</button>
+  </form>
   {% endif %}
 </section>
 

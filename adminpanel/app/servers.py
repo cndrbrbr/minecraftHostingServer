@@ -123,6 +123,9 @@ class ServerControl:
     async def save_properties(self, server: Server, content: str) -> Result:
         return await self.run(server, "properties-set", input=content)
 
+    async def restore_properties(self, server: Server) -> Result:
+        return await self.run(server, "properties-restore")
+
     async def upload_plugin(self, server: Server, filename: str, data: bytes) -> None:
         if not JAR_RE.match(filename):
             raise ServerError("Ungültiger Dateiname.")

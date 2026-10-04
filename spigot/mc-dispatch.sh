@@ -21,6 +21,7 @@
 #   wipe                            reset the server for the next student
 #   properties-get                  print server.properties
 #   properties-set                  replace server.properties (content on stdin)
+#   properties-restore              go back to the version before the last change
 #
 # Arguments are validated again by the called scripts.
 # A student running custom software (MC_SERVER_TYPE=custom) only gets
@@ -87,6 +88,10 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     properties-set)
         [ "$SERVER_TYPE" = "custom" ] && custom_denied
         exec sudo /mc-properties.sh set
+        ;;
+    properties-restore)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-properties.sh restore
         ;;
     version\ *)
         [ "$SERVER_TYPE" = "custom" ] && custom_denied
