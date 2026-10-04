@@ -93,3 +93,45 @@ The following Minecraft server plugins from https://github.com/cndrbrbr are rele
   https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc26.3/geomaptools-4.37-mc26.3.jar
 
 Prometheus4Spigot currently has no matching published GitHub release JAR in the repository. Its current `pom.xml` is already configured for `spigot-api 26.3-R0.1-SNAPSHOT`, Java 25, and plugin version `0.1.0`, so it can be built from source with Maven.
+
+
+## Hyperlinks
+
+- ViaVersion: https://www.spigotmc.org/resources/viaversion.19254/
+- Advanced Portals: https://www.spigotmc.org/resources/advanced-portals.14356/
+- GroupManager: https://www.spigotmc.org/resources/groupmanager.38875/
+- Multiverse-Core: https://www.spigotmc.org/resources/multiverse-core.390/
+- Multiverse-Portals: https://dev.bukkit.org/projects/multiverse-portals
+- Multiverse-NetherPortals: https://dev.bukkit.org/projects/multiverse-netherportals
+- Multiverse-Inventories: https://dev.bukkit.org/projects/multiverse-inventories
+- Multiverse-SignPortals: https://dev.bukkit.org/projects/multiverse-signportals
+- ProtectionStones: https://www.spigotmc.org/resources/protectionstones-updated-for-1-20-6.61797/
+- xhomes: https://modrinth.com/plugin/xhomes
+- ProtocolLib: https://www.spigotmc.org/resources/protocollib.1997/
+- ProtocolLib GitHub: https://github.com/dmulloy2/ProtocolLib
+- Vault: https://www.spigotmc.org/resources/vault.34315/
+- Vivecraft: https://www.vivecraft.org/downloads/
+- WorldEdit: https://dev.bukkit.org/projects/worldedit
+- WorldGuard: https://modrinth.com/plugin/worldguard
+- NoCheatPlus: https://www.spigotmc.org/resources/nocheatplus.26/
+- Dynmap: https://www.spigotmc.org/resources/dynmap%C2%AE.274/
+- CraftAttack Status: https://www.spigotmc.org/resources/craftattack-status.129978/
+- Ultimate Mob Heads Fork Forked: https://www.spigotmc.org/resources/ultimate-mob-heads-fork-forked.128504/
+- Player's Head Drop: https://www.spigotmc.org/resources/players-head-drop.126279/
+- CoreProtect: https://www.spigotmc.org/resources/coreprotect.8631/
+- VoidGen: https://www.spigotmc.org/resources/voidgen.25391/
+- ZNPCs: https://www.spigotmc.org/resources/znpcs.80940/
+- BlockLocker: https://www.spigotmc.org/resources/blocklocker.3268/
+- Orebfuscator: https://www.spigotmc.org/resources/orebfuscator-anti-x-ray.82710/
+- LifeSteal SMP Plugin: https://www.spigotmc.org/resources/lifesteal-smp-plugin.94387/
+- BungeeCord: https://www.spigotmc.org/wiki/bungeecord/
+
+### cndrbrbr plugins
+
+- JSMN / script4kids: https://github.com/cndrbrbr/script4kids
+- JSMN 1.1.0 for Minecraft 26.3: https://github.com/cndrbrbr/script4kids/releases/tag/v1.1.0-mc26.3
+- CaveCompass: https://github.com/cndrbrbr/cavecompass
+- CaveCompass 0.10.1 for Minecraft 26.3: https://github.com/cndrbrbr/cavecompass/releases/tag/v0.10.1-mc26.3
+- geomaptools: https://github.com/cndrbrbr/geomaptools
+- geomaptools 4.37 for Minecraft 26.3: https://github.com/cndrbrbr/geomaptools/releases/tag/v4.37-mc26.3
+- Prometheus4Spigot: https://github.com/cndrbrbr/prometheus4spigot
