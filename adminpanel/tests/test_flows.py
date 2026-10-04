@@ -10,7 +10,7 @@ from app import security as sec
 from app.config import Server, Settings, load_servers
 from app.db import DB
 from app.main import create_app
-from app.servers import Result, ServerError
+from app.servers import Result, ServerControl, ServerError
 
 
 class FakeMailer:
@@ -436,3 +436,38 @@ def test_servers_json_admin_only(tmp_path):
     mode, servers = load_servers(f)
     assert mode == "bungeecord" and list(servers) == ["lobby", "mc1"]
     assert servers["lobby"].admin_only and not servers["mc1"].admin_only
+
+
+def test_upload_path_is_relative_to_sftp_start_dir(tmp_path):
+    """The jar is written to data/plugins/ relative to where SFTP starts, so the
+    upload works with the standard chroot (/server, start dir /) and with a
+    chroot one level up (start dir /server)."""
+    opened, written = [], []
+
+    class FakeFile:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        async def write(self, data): written.append(data)
+
+    class FakeSFTP:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        def open(self, path, mode):
+            opened.append((path, mode))
+            return FakeFile()
+
+    class FakeConn:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): return False
+        def start_sftp_client(self): return FakeSFTP()
+
+    class Control(ServerControl):
+        async def _connect(self, server, user, key_name):
+            assert (user, key_name) == ("mc-sftp", "sftp_key")
+            return FakeConn()
+
+    control = Control(Settings(data_dir=tmp_path), DB(tmp_path / "t.db"))
+    import asyncio
+    asyncio.run(control.upload_plugin(Server("mc1", "mc1"), "Test-1.0.jar", b"jar"))
+    assert opened == [("data/plugins/Test-1.0.jar", "wb")]
+    assert written == [b"jar"]

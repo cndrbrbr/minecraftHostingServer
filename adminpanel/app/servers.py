@@ -132,5 +132,8 @@ class ServerControl:
         conn = await self._connect(server, "mc-sftp", "sftp_key")
         async with conn:
             async with conn.start_sftp_client() as sftp:
-                async with sftp.open(f"/data/plugins/{filename}", "wb") as f:
+                # Relative to the SFTP start directory, so it works whether the
+                # chroot is /server (start dir /) or a parent like /sftp with
+                # the server mounted below it (start dir /server).
+                async with sftp.open(f"data/plugins/{filename}", "wb") as f:
                     await f.write(data)
