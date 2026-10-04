@@ -84,6 +84,7 @@ COPY mc-restore.sh   /mc-restore.sh
 COPY mc-adduser.sh   /mc-adduser.sh
 COPY mc-status.sh    /mc-status.sh
 COPY mc-restart.sh   /mc-restart.sh
+COPY mc-term.sh      /mc-term.sh
 COPY mc-plugins.sh   /mc-plugins.sh
 COPY mc-players.sh   /mc-players.sh
 COPY mc-wipe.sh      /mc-wipe.sh
@@ -94,7 +95,7 @@ COPY mc-rcon.py      /mc-rcon.py
 COPY sshd_config /etc/ssh/sshd_config
 
 RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh /mc-version.sh /mc-restore.sh /mc-adduser.sh \
-        /mc-status.sh /mc-restart.sh /mc-plugins.sh /mc-players.sh /mc-wipe.sh /mc-properties.sh /mc-rcon.py
+        /mc-status.sh /mc-restart.sh /mc-term.sh /mc-plugins.sh /mc-players.sh /mc-wipe.sh /mc-properties.sh /mc-rcon.py
 
 WORKDIR /server
 

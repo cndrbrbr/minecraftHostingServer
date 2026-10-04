@@ -6,7 +6,7 @@
 if [ -f /server/.stopped ]; then
     exec /mc-start.sh
 fi
-if [ -f /server/.pid ] && kill -TERM "$(cat /server/.pid)" 2>/dev/null; then
+if [ -f /server/.pid ] && kill -0 "$(cat /server/.pid)" 2>/dev/null && /mc-term.sh; then
     echo "==> Server is restarting — it will be back in about 30 seconds."
 else
     echo "==> Server is not running yet (it may still be starting)."

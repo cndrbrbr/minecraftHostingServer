@@ -55,10 +55,8 @@ fi
 echo "==> Restoring $NAME from backup $DATE..."
 echo "==> Stopping server..."
 touch /server/.stopped
-if [ -f /server/.pid ]; then
-    kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
-fi
-sleep 3
+# Wait until the server has saved and exited before the world is replaced
+/mc-term.sh --wait
 
 # Download and extract cfg, plugins, worlds
 for part in cfg plugins worlds; do
