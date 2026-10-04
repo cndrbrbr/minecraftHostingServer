@@ -1,6 +1,8 @@
 # Minecraft Workshop — Student Guide
 
-Welcome to the JavaScript Minecraft Workshop! This guide explains how to upload files to your Minecraft server and how to restart it.
+Welcome to the JavaScript Minecraft Workshop! This guide explains how to manage your own Minecraft server.
+
+**The easiest way is the admin page** (Part 0) — a web page where you start and stop your server, install plugins and decide who may play. FileZilla (Part 1) and PuTTY (Part 2) are only needed if you want to work with the files of your server directly.
 
 ---
 
@@ -10,15 +12,50 @@ Your teacher fills in this table for you before handing out this guide.
 
 | | Address | Username |
 |-|---------|----------|
+| **Admin page** | `https://____________________` | your e-mail address |
 | **FileZilla (SFTP)** | `sftp://____________________:________` | `mc-sftp` |
 | **PuTTY (SSH restart)** | `____________________:________` | `mc-ctrl` |
 | **Minecraft client** | `____________________:________` | your Minecraft name |
 
-Your two key files:
+For the admin page you only need your e-mail address — you get an invitation by mail.
+
+Only for FileZilla and PuTTY — your two key files:
 - `sftp_key` — for FileZilla
 - `ctrl_key` — for PuTTY (needs to be converted once, see below)
 
 > **Your server is yours alone.** Other students have their own separate server and cannot access yours.
+
+---
+
+## Part 0 — The admin page: the easy way
+
+### First time: set your password
+
+1. You get an e-mail **"Einladung zur Minecraft-Adminseite"**. Click the link in it (it works for 7 days and only once).
+2. Choose a password with at least 8 characters — a short sentence is easy to remember. **Don't use the password of your e-mail account.**
+
+### Log in
+
+1. Open the admin page and enter your **e-mail address** and **password**.
+2. We send a **6-digit code** to your e-mail address. Type it in (it is valid for 10 minutes).
+
+Checking two things — your password *and* your mailbox — means nobody can get into your server just by guessing your password.
+
+### What you can do
+
+| | |
+|---|---|
+| **Starten / Stoppen / Neu starten** | Start, stop or restart your server. Starting takes about 30 seconds. |
+| **Plugins** | See the installed plugins, remove them, install new ones from the list with one click, or upload your own `.jar` file. **Restart the server afterwards** so the change takes effect. |
+| **Spieler** | Add the Minecraft names of the friends who may play on your server, and make them **operator** if they may use all commands. This works immediately. |
+
+Some plugins worth knowing:
+- **ViaBackwards** — friends whose Minecraft is older than the server can still join.
+- **ViaVersion** — friends whose Minecraft is newer can join.
+
+### Forgot your password?
+
+Ask your teacher for a new invitation. Your old password stops working, and you set a new one with the link in the mail.
 
 ---
 
@@ -248,8 +285,8 @@ Use this command to let a specific Minecraft player join your server and give th
 ## Typical workflow during the workshop
 
 1. Write or edit your script / plugin on your computer.
-2. Open FileZilla → upload the `.jar` file to `/data/plugins/` (or edit config files in `/data/cfg/`).
-3. Open PuTTY → run **mc-stop**, then **mc-start**.
+2. Upload the `.jar` file on the admin page (*Eigenes Plugin hochladen*) — or with FileZilla to `/data/plugins/` (config files are in `/data/cfg/`).
+3. Click **Neu starten** on the admin page — or in PuTTY run **mc-stop**, then **mc-start**.
 4. Wait ~30 seconds, then connect to Minecraft and test your changes.
 5. Repeat.
 
