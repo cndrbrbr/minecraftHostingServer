@@ -103,7 +103,9 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
         resp = await call_next(request)
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("Referrer-Policy", "no-referrer")
+        # same-origin, not no-referrer: with no-referrer browsers send "Origin: null"
+        # on form posts, which the origin check above would refuse.
+        resp.headers.setdefault("Referrer-Policy", "same-origin")
         resp.headers.setdefault("Content-Security-Policy",
                                 "default-src 'self'; style-src 'self'; img-src 'self' data:; "
                                 "form-action 'self'; frame-ancestors 'none'")

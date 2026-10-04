@@ -288,3 +288,18 @@ def test_session_cookie_flags(env):
     r = client(app).post("/login", data={"email": "kid@school.de", "password": "geheim123"})
     cookie = r.headers["set-cookie"].lower()
     assert "httponly" in cookie and "samesite=lax" in cookie
+
+
+def test_referrer_policy_keeps_origin_header(env):
+    # Browsers send "Origin: null" on form posts when the page says no-referrer
+    _, _, _, _, app = env
+    r = client(app).get("/login")
+    assert r.headers["referrer-policy"] == "same-origin"
+
+
+def test_same_origin_post_is_accepted(env):
+    _, db, mailer, _, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    r = client(app).post("/login", data={"email": "kid@school.de", "password": "geheim123"},
+                         headers={"Origin": ORIGIN})
+    assert r.status_code == 303
