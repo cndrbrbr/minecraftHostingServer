@@ -178,7 +178,8 @@ on_term() {
     touch /server/.shutdown
     if [ -f /server/.pid ]; then
         echo "==> SIGTERM received — stopping the Minecraft server (saving the world)..."
-        kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
+        # 50 s, so it is down before Docker's 60 s stop_grace_period ends
+        /mc-term.sh 50
     else
         echo "==> SIGTERM received — no server running, exiting."
         exit 0

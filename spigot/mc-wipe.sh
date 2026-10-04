@@ -15,13 +15,7 @@ if [ "$(cat /server/.servertype 2>/dev/null)" = "custom" ]; then
 fi
 
 touch /server/.stopped
-if [ -f /server/.pid ]; then
-    kill -TERM "$(cat /server/.pid)" 2>/dev/null || true
-    for _ in $(seq 1 60); do
-        [ -f /server/.pid ] && kill -0 "$(cat /server/.pid)" 2>/dev/null || break
-        sleep 1
-    done
-fi
+/mc-term.sh --wait
 
 ts=$(date +%Y%m%d-%H%M%S)
 backup="/server/data/backup-$ts"
