@@ -37,6 +37,7 @@
     </form>
     {% endfor %}
     <a class="button" href="/server/{{ server.name }}">Aktualisieren</a>
+    {% if managed %}<a class="button" href="/server/{{ server.name }}/properties">Einstellungen</a>{% endif %}
   </div>
   {% if status.state == 'building' %}<p class="hint">Eine neue Minecraft-Version wird gebaut. Das kann einige Minuten dauern.</p>{% endif %}
 </section>

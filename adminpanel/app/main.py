@@ -29,6 +29,7 @@ log = logging.getLogger("adminpanel")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 COOKIE = "mcadmin"
+MAX_PROPERTIES = 64 * 1024
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 STATE_LABELS = {
     "running": ("läuft", "ok"),
@@ -349,6 +350,69 @@ def create_app(settings: Settings | None = None, db: DB | None = None,
         player = player.strip()
         return await server_action(request, name, csrf, lambda srv: control.player(srv, action, player),
                                    texts[action], action, player)
+
+    # ── server.properties ─────────────────────────────────────
+    def parse_properties(text: str) -> dict[str, str]:
+        out = {}
+        for line in text.splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                key, _, value = line.partition("=")
+                out[key.strip()] = value
+        return out
+
+    @app.get("/server/{name}/properties")
+    async def properties_page(request: Request, name: str):
+        s = current(request)
+        if s is None:
+            return redirect("/login")
+        if not can_access(s, name):
+            return page(request, "message.html", s, status_code=403, title="Kein Zugriff",
+                        text="Das ist nicht dein Server.")
+        server = settings.servers[name]
+        (content, err), (status, _) = await asyncio.gather(
+            safe(control.properties(server), ""),
+            safe(control.status(server), {"state": "unreachable"}))
+        return page(request, "properties.html", s, server=server, content=content, error=err,
+                    status=status, max_kb=MAX_PROPERTIES // 1024)
+
+    @app.post("/server/{name}/properties")
+    async def properties_save(request: Request, name: str, content: str = Form(""),
+                              action: str = Form("save"), csrf: str = Form("")):
+        s = current(request)
+        if s is None:
+            return redirect("/login")
+        if not can_access(s, name) or not csrf_ok(s, csrf):
+            return Response("Forbidden", status_code=403)
+        url = f"/server/{name}/properties"
+        content = content.replace("\r\n", "\n")
+        if len(content.encode("utf-8")) > MAX_PROPERTIES:
+            return flash_redirect(s, url, "Die Datei ist zu groß.", "err")
+        if not content.endswith("\n"):
+            content += "\n"
+        server = settings.servers[name]
+        try:
+            old = parse_properties(await control.properties(server))
+            res = await control.save_properties(server, content)
+            if not res.ok:
+                return flash_redirect(s, url, res.output or "Speichern hat nicht geklappt.", "err")
+            new = parse_properties(content)
+            changed = sorted(k for k in set(old) | set(new) if old.get(k) != new.get(k))
+            db.audit(actor(s), name, "properties", ", ".join(changed)[:300])
+            message = "server.properties gespeichert."
+            kept = re.search(r"Protected settings unchanged: (.+)", res.output)
+            if kept:
+                message += f" Diese geschützten Einträge bleiben unverändert: {kept.group(1)}."
+            if action == "restart":
+                status = await control.status(server)
+                power = "start" if status.get("state") == "stopped" else "restart"
+                await control.action(server, power)
+                db.audit(actor(s), name, power)
+                message += " Der Server startet jetzt mit den neuen Einstellungen."
+                return flash_redirect(s, f"/server/{name}", message)
+            message += " Die Änderungen gelten ab dem nächsten Start."
+        except ServerError as exc:
+            return flash_redirect(s, url, str(exc), "err")
+        return flash_redirect(s, url, message)
 
     # ── admin ─────────────────────────────────────────────────
     def admin_session(request: Request):

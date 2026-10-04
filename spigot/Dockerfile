@@ -53,7 +53,7 @@ RUN mkdir -p /home/mc-sftp/.ssh /home/mc-ctrl/.ssh && \
     chmod 700 /home/mc-sftp/.ssh /home/mc-ctrl/.ssh
 
 # mc-ctrl may only sudo the control scripts (no TTY required)
-RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh, /mc-version.sh, /mc-restore.sh, /mc-adduser.sh, /mc-status.sh, /mc-restart.sh, /mc-plugins.sh, /mc-players.sh, /mc-wipe.sh\n' \
+RUN printf 'Defaults !requiretty\nmc-ctrl ALL=(root) NOPASSWD: /mc-start.sh, /mc-stop.sh, /mc-version.sh, /mc-restore.sh, /mc-adduser.sh, /mc-status.sh, /mc-restart.sh, /mc-plugins.sh, /mc-players.sh, /mc-wipe.sh, /mc-properties.sh\n' \
     > /etc/sudoers.d/mc-ctrl && chmod 440 /etc/sudoers.d/mc-ctrl
 
 WORKDIR /server-base
@@ -87,13 +87,14 @@ COPY mc-restart.sh   /mc-restart.sh
 COPY mc-plugins.sh   /mc-plugins.sh
 COPY mc-players.sh   /mc-players.sh
 COPY mc-wipe.sh      /mc-wipe.sh
+COPY mc-properties.sh /mc-properties.sh
 COPY mc-rcon.py      /mc-rcon.py
 
 # SSH server config
 COPY sshd_config /etc/ssh/sshd_config
 
 RUN chmod +x /entrypoint.sh /watch_copy.sh /mc-dispatch.sh /mc-start.sh /mc-stop.sh /mc-version.sh /mc-restore.sh /mc-adduser.sh \
-        /mc-status.sh /mc-restart.sh /mc-plugins.sh /mc-players.sh /mc-wipe.sh /mc-rcon.py
+        /mc-status.sh /mc-restart.sh /mc-plugins.sh /mc-players.sh /mc-wipe.sh /mc-properties.sh /mc-rcon.py
 
 WORKDIR /server
 

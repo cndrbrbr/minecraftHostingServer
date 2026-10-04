@@ -79,3 +79,6 @@ details.confirm form { margin-top: 8px; }
   table.list td.right { text-align: left; }
   table.list td.right form { margin: 4px 6px 0 0; }
 }
+textarea.editor { font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; width: 100%;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--text);
+  resize: vertical; tab-size: 4; }

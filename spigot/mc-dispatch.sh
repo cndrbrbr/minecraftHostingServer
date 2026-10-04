@@ -19,6 +19,8 @@
 #   player-add|player-remove <name> whitelist
 #   op|deop <name>                  operator rights
 #   wipe                            reset the server for the next student
+#   properties-get                  print server.properties
+#   properties-set                  replace server.properties (content on stdin)
 #
 # Arguments are validated again by the called scripts.
 # A student running custom software (MC_SERVER_TYPE=custom) only gets
@@ -77,6 +79,14 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
     wipe)
         [ "$SERVER_TYPE" = "custom" ] && custom_denied
         exec sudo /mc-wipe.sh
+        ;;
+    properties-get)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-properties.sh get
+        ;;
+    properties-set)
+        [ "$SERVER_TYPE" = "custom" ] && custom_denied
+        exec sudo /mc-properties.sh set
         ;;
     version\ *)
         [ "$SERVER_TYPE" = "custom" ] && custom_denied

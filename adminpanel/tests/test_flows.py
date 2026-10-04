@@ -37,7 +37,7 @@ class FakeControl:
                            "version": "3.1.2", "catalog_id": "prometheus", "locked": True}]
 
     async def status(self, server):
-        return {"state": "running", "type": "spigot", "version": "26.3", "players": [], "max_players": 20}
+        return {"state": self.state, "type": "spigot", "version": "26.3", "players": [], "max_players": 20}
 
     async def plugins(self, server):
         return self.installed
@@ -70,6 +70,17 @@ class FakeControl:
 
     async def upload_plugin(self, server, filename, data):
         self.uploads.append((server.name, filename, len(data)))
+
+    props = "motd=A Minecraft Server\ndifficulty=easy\nserver-port=25565\n"
+    state = "running"
+    saved = None
+
+    async def properties(self, server):
+        return self.props
+
+    async def save_properties(self, server, content):
+        self.saved = (server.name, content)
+        return Result(True, "==> server.properties saved.")
 
 
 ORIGIN = "http://testserver"
@@ -303,3 +314,32 @@ def test_same_origin_post_is_accepted(env):
     r = client(app).post("/login", data={"email": "kid@school.de", "password": "geheim123"},
                          headers={"Origin": ORIGIN})
     assert r.status_code == 303
+
+
+def test_properties_edit_and_restart(env):
+    _, db, mailer, control, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    html = c.get("/server/mc1/properties").text
+    assert "difficulty=easy" in html
+    assert c.get("/server/mc2/properties").status_code == 403
+    new = "motd=Mein Server\r\ndifficulty=hard\r\nserver-port=25565"
+    control.state = "stopped"
+    r = c.post("/server/mc1/properties", data={"content": new, "action": "restart", "csrf": csrf_of(html)})
+    assert r.headers["location"] == "/server/mc1"
+    assert control.saved == ("mc1", "motd=Mein Server\ndifficulty=hard\nserver-port=25565\n")
+    assert ("mc1", "start") in control.calls          # stopped server → start, not restart
+    row = db.one("SELECT detail FROM audit WHERE action = 'properties'")
+    assert row["detail"] == "difficulty, motd"
+    assert c.post("/server/mc2/properties", data={"content": new, "csrf": csrf_of(html)}).status_code == 403
+
+
+def test_properties_size_limit(env):
+    _, db, mailer, control, app = env
+    make_user(db, "kid@school.de", "Kid", "student", "mc1")
+    c = client(app)
+    login(c, mailer, "kid@school.de")
+    html = c.get("/server/mc1/properties").text
+    c.post("/server/mc1/properties", data={"content": "a=" + "x" * 70000, "csrf": csrf_of(html)})
+    assert control.saved is None

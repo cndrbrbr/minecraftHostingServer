@@ -60,11 +60,11 @@ class ServerControl:
                               "aus Sicherheitsgründen wird die Verbindung abgelehnt (siehe README).")
         return conn
 
-    async def run(self, server: Server, command: str, timeout: float = 60) -> Result:
+    async def run(self, server: Server, command: str, timeout: float = 60, input: str | None = None) -> Result:
         conn = await self._connect(server, "mc-ctrl", "ctrl_key")
         async with conn:
             try:
-                proc = await asyncio.wait_for(conn.run(command, check=False), timeout=timeout)
+                proc = await asyncio.wait_for(conn.run(command, check=False, input=input), timeout=timeout)
             except asyncio.TimeoutError as exc:
                 raise ServerError(f"{server.name} antwortet nicht.") from exc
         out = ((proc.stdout or "") + (proc.stderr or "")).strip()
@@ -113,6 +113,15 @@ class ServerControl:
         if not PLAYER_RE.match(name):
             raise ServerError("Ungültiger Spielername (3–16 Zeichen: Buchstaben, Ziffern, _).")
         return await self.run(server, f"{action} {name}")
+
+    async def properties(self, server: Server) -> str:
+        res = await self.run(server, "properties-get")
+        if not res.ok:
+            raise ServerError(res.output or "server.properties konnte nicht gelesen werden.")
+        return res.output
+
+    async def save_properties(self, server: Server, content: str) -> Result:
+        return await self.run(server, "properties-set", input=content)
 
     async def upload_plugin(self, server: Server, filename: str, data: bytes) -> None:
         if not JAR_RE.match(filename):

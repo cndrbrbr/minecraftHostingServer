@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen {{ server.name }}{% endblock %}
+{% block content %}
+{% set label, tone = state_labels.get(status.state, (status.state, 'off')) %}
+<section class="card">
+  <div class="headline">
+    <h1>Einstellungen: {{ server.name }}</h1>
+    <span class="badge {{ tone }}">{{ label }}</span>
+  </div>
+  <p><a href="/server/{{ server.name }}">← zurück zum Server</a></p>
+  {% if error %}
+  <p class="flash err">{{ error }}</p>
+  {% else %}
+  <p class="hint">Das ist die Datei <code>server.properties</code>. Jede Zeile hat die Form <code>name=wert</code>;
+     Zeilen mit <code>#</code> sind Kommentare. Minecraft liest die Datei nur beim Start – darum
+     „Speichern und neu starten“. Einträge, die der Server zum Funktionieren braucht
+     (<code>server-port</code>, <code>online-mode</code>, <code>rcon…</code>), bleiben immer unverändert.</p>
+  <form method="post" action="/server/{{ server.name }}/properties" class="stack">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <textarea name="content" class="editor" rows="28" spellcheck="false" maxlength="{{ max_kb * 1024 }}">{{ content }}</textarea>
+    <div class="buttons">
+      <button class="primary" name="action" value="restart">
+        {{ 'Speichern und starten' if status.state == 'stopped' else 'Speichern und neu starten' }}</button>
+      <button name="action" value="save">Nur speichern</button>
+      <a class="button" href="/server/{{ server.name }}/properties">Änderungen verwerfen</a>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Wichtige Einträge</h2>
+  <table class="list compact">
+    <thead><tr><th>Eintrag</th><th>Bedeutung</th><th>Werte</th></tr></thead>
+    <tbody>
+      <tr><td><code>motd</code></td><td>Text in der Serverliste von Minecraft</td><td>beliebiger Text</td></tr>
+      <tr><td><code>gamemode</code></td><td>Spielmodus für neue Spieler</td><td><code>survival</code>, <code>creative</code>, <code>adventure</code>, <code>spectator</code></td></tr>
+      <tr><td><code>force-gamemode</code></td><td>Spielmodus bei jedem Betreten erzwingen</td><td><code>true</code> / <code>false</code></td></tr>
+      <tr><td><code>difficulty</code></td><td>Schwierigkeit</td><td><code>peaceful</code>, <code>easy</code>, <code>normal</code>, <code>hard</code></td></tr>
+      <tr><td><code>pvp</code></td><td>Dürfen Spieler sich gegenseitig angreifen?</td><td><code>true</code> / <code>false</code></td></tr>
+      <tr><td><code>max-players</code></td><td>Höchstzahl gleichzeitiger Spieler</td><td>Zahl</td></tr>
+      <tr><td><code>white-list</code></td><td>Nur Spieler auf der Liste dürfen rein</td><td><code>true</code> / <code>false</code></td></tr>
+      <tr><td><code>spawn-protection</code></td><td>Radius um den Spawn, in dem nur Operatoren bauen dürfen</td><td>Zahl (<code>0</code> = aus)</td></tr>
+      <tr><td><code>spawn-monsters</code></td><td>Erscheinen Monster?</td><td><code>true</code> / <code>false</code></td></tr>
+      <tr><td><code>allow-flight</code></td><td>Fliegen erlauben (z. B. für Plugins)</td><td><code>true</code> / <code>false</code></td></tr>
+      <tr><td><code>view-distance</code></td><td>Sichtweite in Chunks (mehr = mehr Rechenlast)</td><td><code>3</code>–<code>32</code></td></tr>
+      <tr><td><code>level-seed</code></td><td>Startwert für eine <em>neue</em> Welt</td><td>Zahl oder Text</td></tr>
+      <tr><td><code>level-type</code></td><td>Art einer <em>neuen</em> Welt</td><td><code>minecraft:normal</code>, <code>minecraft:flat</code>, …</td></tr>
+    </tbody>
+  </table>
+  <p class="hint"><code>level-seed</code> und <code>level-type</code> wirken nur, wenn eine neue Welt erzeugt wird –
+     nicht für die bestehende Welt.</p>
+</section>
+{% endblock %}
