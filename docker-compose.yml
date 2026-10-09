@@ -17,6 +17,28 @@ services:
       - bungee_data:/bungee
     networks:
       - workshop
+    # BungeeCord resolves the server names only at startup. When Compose
+    # recreates a server (new IP), restart the proxy too — otherwise it keeps
+    # sending players to the old IP, which may now belong to another server.
+    depends_on:
+      lobby:
+        condition: service_started
+        restart: true
+      mc1:
+        condition: service_started
+        restart: true
+      mc2:
+        condition: service_started
+        restart: true
+      mc3:
+        condition: service_started
+        restart: true
+      mc4:
+        condition: service_started
+        restart: true
+      mc5:
+        condition: service_started
+        restart: true
 
   # ── Lobby server ──────────────────────────────────────────────
   # Players land here first. No host MC port — only reachable

@@ -60,6 +60,7 @@ Built on top of [javascriptMinecraftWorkshopServer](https://github.com/cndrbrbr/
 - [BungeeCord internals](#bungeecord-internals)
   - [Authentication flow](#authentication-flow)
   - [Network isolation](#network-isolation)
+  - [Server addresses and container restarts](#server-addresses-and-container-restarts)
   - [Lobby](#lobby)
 - [Firewall (iptables)](#firewall-iptables)
 - [Security model](#security-model)
@@ -955,6 +956,16 @@ This section explains the technical choices for the BungeeCord setup.
 ### Network isolation
 
 Backend servers are only reachable from within the `workshop` Docker bridge network. Only the BungeeCord container's port 25565 is bound to the host. Students cannot bypass the proxy.
+
+### Server addresses and container restarts
+
+BungeeCord resolves the server names (`lobby:25565`, `mc1:25565`, …) only once, at startup. When Docker recreates a server container, it can get a different IP address — the proxy then keeps sending players to the old address, which may now belong to another server (symptom: players get "You are not whitelisted" or end up on the wrong world, and the lobby log shows no login at all). Therefore:
+
+- `docker compose up -d` and `docker compose restart <server>` restart the proxy automatically (`depends_on` with `restart: true` in the generated `docker-compose.yml`).
+- The `start-lobby.sh` / `start-mcN.sh` scripts restart the proxy when they had to recreate the container.
+- After `docker compose up -d --no-deps <server>` by hand, run `docker compose restart bungee` yourself.
+
+All players are disconnected for a few seconds while the proxy restarts.
 
 ### Lobby
 
