@@ -66,13 +66,57 @@ PYEOF
     fi
 }
 
+online_mode() {
+    [ "$(grep "^online-mode=" "$PROPS_FILE" 2>/dev/null | cut -d= -f2 | tr -d '[:space:]')" != "false" ]
+}
+
+# Current Mojang name for a UUID (accounts can be renamed; ops.json and
+# whitelist.json keep the old name). Empty if unknown or offline mode.
+current_name() {
+    local uuid="${1//-/}"
+    online_mode || return 0
+    curl -sf --max-time 10 "https://sessionserver.mojang.com/session/minecraft/profile/$uuid" \
+        | jq -r '.name // empty' 2>/dev/null || true
+}
+
+# UUID stored for <name> in a JSON list file (case-insensitive), empty if none.
+stored_uuid() {
+    jq -r --arg n "$2" '[.[] | select((.name | ascii_downcase) == ($n | ascii_downcase)) | .uuid][0] // empty' "$1"
+}
+
+# "deop <name>" over RCON. The server resolves the name via Mojang, so a
+# renamed account answers "That player does not exist" - then retry with the
+# current name of the UUID stored in ops.json. Fails (exit 1) unless the
+# server confirms, so callers such as the admin page see a real error.
+rcon_deop() {
+    local name="$1" out uuid newname
+    out=$(rcon deop "$name") || die "could not reach the server: $out"
+    case "$out" in
+        Made*|Nothing\ changed*) echo "==> $out"; return 0 ;;
+    esac
+    uuid=$(stored_uuid "$OPS_FILE" "$name")
+    newname=""
+    [ -n "$uuid" ] && newname=$(current_name "$uuid")
+    if [ -n "$newname" ] && [ "${newname,,}" != "${name,,}" ]; then
+        echo "==> '$name' is now called '$newname' — using the new name."
+        out=$(rcon deop "$newname") || die "could not reach the server: $out"
+        case "$out" in
+            Made*|Nothing\ changed*) echo "==> $out"; return 0 ;;
+        esac
+    fi
+    die "the server could not deop '$name': $out"
+}
+
 do_deop() {
-    local name="$1" out
+    local name="$1" uuid
     if running; then
-        out=$(rcon deop "$name") || die "could not reach the server: $out"
-        echo "==> $out"
+        rcon_deop "$name"
     else
-        write_json "$OPS_FILE" --arg n "$name" 'map(select((.name | ascii_downcase) != ($n | ascii_downcase)))'
+        # Match by name or, if the account was renamed, by its current UUID.
+        uuid=""
+        online_mode && uuid=$(lookup_uuid "$name" 2>/dev/null) || true
+        write_json "$OPS_FILE" --arg n "$name" --arg u "$uuid" \
+            'map(select((.name | ascii_downcase) != ($n | ascii_downcase) and ($u == "" or .uuid != $u)))'
         echo "==> '$name' is no longer an operator."
     fi
 }
@@ -121,7 +165,10 @@ case "$cmd" in
         valid_name "$name"
         if running; then
             out=$(rcon op "$name") || die "could not reach the server: $out"
-            echo "==> $out"
+            case "$out" in
+                Made*|Nothing\ changed*) echo "==> $out" ;;
+                *) die "the server could not op '$name': $out" ;;
+            esac
         else
             if jq -e --arg n "$name" 'any(.[]; (.name | ascii_downcase) == ($n | ascii_downcase))' "$OPS_FILE" >/dev/null; then
                 echo "==> '$name' is already an operator."
