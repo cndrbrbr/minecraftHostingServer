@@ -81,7 +81,7 @@ The following Minecraft server plugins from https://github.com/cndrbrbr are rele
 | JSMN / script4kids | 1.1.0 | Tested on Spigot 26.3 / Java 25; dedicated 26.3 build | https://github.com/cndrbrbr/script4kids/releases/tag/v1.1.0-mc26.3 |
 | CaveCompass | 0.10.1 | Dedicated Spigot 26.3 build | https://github.com/cndrbrbr/cavecompass/releases/tag/v0.10.1-mc26.3 |
 | geomaptools | 4.37 | Runs on Spigot 26.3 / Java 25; dedicated 26.3 build | https://github.com/cndrbrbr/geomaptools/releases/tag/v4.37-mc26.3 |
-| BlockWatch | 0.3.0 | Built for Spigot 26.3 / Java 25; CoreProtect replacement (logging + statistics, blocks TNT/lava/fire for non-ops, no rollback) | https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.0 |
+| BlockWatch | 0.3.1 | Built for Spigot 26.3 / Java 25; CoreProtect replacement (logging + statistics, blocks TNT/lava/fire for non-ops, no rollback) | https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.1 |
 | Prometheus4Spigot | 0.1.0 | Source targets Spigot API 26.3 and Java 25 | https://github.com/cndrbrbr/prometheus4spigot |
 
 ### Direct 26.3 JARs
@@ -92,8 +92,8 @@ The following Minecraft server plugins from https://github.com/cndrbrbr are rele
   https://github.com/cndrbrbr/cavecompass/releases/download/v0.10.1-mc26.3/CaveCompass-0.10.1-mc26.3.jar
 - `geomaptools-4.37-mc26.3.jar`  
   https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc26.3/geomaptools-4.37-mc26.3.jar
-- `blockwatch-0.3.0.jar`  
-  https://github.com/cndrbrbr/BlockWatch/releases/download/0.3.0/blockwatch-0.3.0.jar
+- `blockwatch-0.3.1.jar`  
+  https://github.com/cndrbrbr/BlockWatch/releases/download/0.3.1/blockwatch-0.3.1.jar
 
 Prometheus4Spigot currently has no matching published GitHub release JAR in the repository. Its current `pom.xml` is already configured for `spigot-api 26.3-R0.1-SNAPSHOT`, Java 25, and plugin version `0.1.0`, so it can be built from source with Maven.
 
@@ -138,5 +138,5 @@ Prometheus4Spigot currently has no matching published GitHub release JAR in the 
 - geomaptools: https://github.com/cndrbrbr/geomaptools
 - geomaptools 4.37 for Minecraft 26.3: https://github.com/cndrbrbr/geomaptools/releases/tag/v4.37-mc26.3
 - BlockWatch: https://github.com/cndrbrbr/BlockWatch
-- BlockWatch 0.3.0 for Minecraft 26.3: https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.0
+- BlockWatch 0.3.1 for Minecraft 26.3: https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.1
 - Prometheus4Spigot: https://github.com/cndrbrbr/prometheus4spigot
