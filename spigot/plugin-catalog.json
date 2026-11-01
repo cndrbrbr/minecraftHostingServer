@@ -43,6 +43,20 @@
       "status": "verified"
     },
     {
+      "id": "blockwatch",
+      "name": "BlockWatch",
+      "description": "Zeichnet auf, wer wo Blöcke abbaut oder setzt, und verhindert TNT, Lava, Feuerzeug und Endkristalle (Abfrage mit /bw).",
+      "replaces": [
+        "BlockWatch-*.jar",
+        "blockwatch-*.jar"
+      ],
+      "variants": {
+        "26.3": "https://github.com/cndrbrbr/BlockWatch/releases/download/0.3.0/blockwatch-0.3.0.jar"
+      },
+      "category": "Unsere Plugins",
+      "status": "verified"
+    },
+    {
       "id": "geomaptools",
       "name": "geomaptools",
       "description": "Echte Karten (OpenStreetMap) und Bilder in die Welt holen und schnell bauen.",
