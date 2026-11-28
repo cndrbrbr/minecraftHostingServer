@@ -82,6 +82,7 @@ The following Minecraft server plugins from https://github.com/cndrbrbr are rele
 | CaveCompass | 0.10.1 | Dedicated Spigot 26.3 build | https://github.com/cndrbrbr/cavecompass/releases/tag/v0.10.1-mc26.3 |
 | geomaptools | 4.37 | Runs on Spigot 26.3 / Java 25; dedicated 26.3 build | https://github.com/cndrbrbr/geomaptools/releases/tag/v4.37-mc26.3 |
 | BlockWatch | 0.3.1 | Built for Spigot 26.3 / Java 25; CoreProtect replacement (logging + statistics, blocks TNT/lava/fire for non-ops, no rollback) | https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.1 |
+| MeckLobby | 1.0.0 | Built for Spigot 26.3 / Java 25; `/lobby` transfers players to the meckminecraft.de lobby (host/port in config.yml) | https://github.com/cndrbrbr/meckhub/releases/tag/mecklobby-1.0.0 |
 | Prometheus4Spigot | 0.1.0 | Source targets Spigot API 26.3 and Java 25 | https://github.com/cndrbrbr/prometheus4spigot |
 
 ### Direct 26.3 JARs
@@ -94,6 +95,8 @@ The following Minecraft server plugins from https://github.com/cndrbrbr are rele
   https://github.com/cndrbrbr/geomaptools/releases/download/v4.37-mc26.3/geomaptools-4.37-mc26.3.jar
 - `blockwatch-0.3.1.jar`  
   https://github.com/cndrbrbr/BlockWatch/releases/download/0.3.1/blockwatch-0.3.1.jar
+- `MeckLobby-spigot-1.0.0.jar`  
+  https://github.com/cndrbrbr/meckhub/releases/download/mecklobby-1.0.0/MeckLobby-spigot-1.0.0.jar
 
 Prometheus4Spigot currently has no matching published GitHub release JAR in the repository. Its current `pom.xml` is already configured for `spigot-api 26.3-R0.1-SNAPSHOT`, Java 25, and plugin version `0.1.0`, so it can be built from source with Maven.
 
@@ -139,4 +142,6 @@ Prometheus4Spigot currently has no matching published GitHub release JAR in the 
 - geomaptools 4.37 for Minecraft 26.3: https://github.com/cndrbrbr/geomaptools/releases/tag/v4.37-mc26.3
 - BlockWatch: https://github.com/cndrbrbr/BlockWatch
 - BlockWatch 0.3.1 for Minecraft 26.3: https://github.com/cndrbrbr/BlockWatch/releases/tag/0.3.1
+- MeckLobby (in the MeckHub repo): https://github.com/cndrbrbr/meckhub/tree/main/lobbycommand
+- MeckLobby 1.0.0 for Minecraft 26.3: https://github.com/cndrbrbr/meckhub/releases/tag/mecklobby-1.0.0
 - Prometheus4Spigot: https://github.com/cndrbrbr/prometheus4spigot

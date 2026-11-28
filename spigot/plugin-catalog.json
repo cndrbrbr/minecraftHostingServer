@@ -57,6 +57,20 @@
       "status": "verified"
     },
     {
+      "id": "mecklobby",
+      "name": "MeckLobby",
+      "description": "/lobby bringt Spieler per Weiterleitung zurück in die Lobby von meckminecraft.de (Ziel in plugins/MeckLobby/config.yml).",
+      "replaces": [
+        "MeckLobby-*.jar",
+        "mecklobby-*.jar"
+      ],
+      "variants": {
+        "26.3": "https://github.com/cndrbrbr/meckhub/releases/download/mecklobby-1.0.0/MeckLobby-spigot-1.0.0.jar"
+      },
+      "category": "Unsere Plugins",
+      "status": "verified"
+    },
+    {
       "id": "geomaptools",
       "name": "geomaptools",
       "description": "Echte Karten (OpenStreetMap) und Bilder in die Welt holen und schnell bauen.",
